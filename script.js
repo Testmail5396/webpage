@@ -11,7 +11,7 @@ const backToProjectsButton = document.getElementById('back-to-projects');
 
 // Define project data
 const projectsData = [
-    { id: 'scripture-names', name: 'Scripture Names', description: 'An interactive list of names found in the Holy Bible, with meanings and origins.', externalLink: '../Name_Scripture/index.html' }, // Modified to link to external index.html
+    { id: 'scripture-names', name: 'Scripture Names', description: 'An interactive list of names found in the Holy Bible, with meanings and origins.', externalLink: '../namescripture/index.html' }, // Modified to link to external index.html
     { id: 'ai-powered-content-generator', name: 'AI-Powered Content Generator', description: 'Early stage development', fullContent: '<p>An experimental project leveraging AI models to generate creative content, such as short stories, marketing copy, and social media posts. Currently in its early development phase, focusing on prompt engineering and output refinement.</p><p>Technologies involved: Gemini API integration and natural language processing.</p><p>You can view the live demo <a href="https://www.example.com/ai-generator" target="_blank" class="text-blue-600 hover:underline">here</a>.</p>' },
     { id: 'photography-portfolio-curation', name: 'Photography Portfolio Curation', description: 'Selecting and refining best shots', fullContent: '<p>A continuous effort to curate and present a selection of my best photographic works. This involves reviewing thousands of images, post-processing, and organizing them into thematic collections for online display.</p><p>Focus areas: landscape, street, and portrait photography.</p>' },
     // Add new projects here like this:
