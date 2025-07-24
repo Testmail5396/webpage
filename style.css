@@ -1,0 +1,134 @@
+/* Import Tailwind CSS */
+@import url("https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css");
+
+body {
+    font-family: 'Mulish', -apple-system, sans-serif; /* Changed default font to Mulish */
+    background-color: #fff; /* Changed background color to white as requested */
+    color: #3b3d40; /* Dark grey text */
+    display: flex; /* Use flexbox for centering content */
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh; /* Ensure body takes full viewport height */
+    padding: 2rem; /* Add padding to the body for overall spacing */
+    padding-top:6rem !important
+}
+main {
+    max-width: 768px; /* Max width similar to the image */
+    width: 100%; /* Ensure it takes full width up to max-width */
+    background-color: #fff; /* White content background */
+    padding: 2rem; /* Padding inside the main content area */
+    /* Removed box-shadow and border-radius as requested */
+}
+header {
+    max-width: 768px; /* Match main content width */
+    width: 100%;
+    margin-bottom: 2rem; /* Space below header */
+    padding: 0 2rem; /* Match main content padding for alignment */
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+footer {
+    max-width: 768px; /* Match main content width */
+    width: 100%;
+    margin-top: 2rem; /* Space above footer */
+    padding: 1rem 2rem; /* Padding for footer */
+    border-top: 1px solid #e5e7eb; /* Border top for footer */
+    box-sizing: border-box; /* Include padding in width calculation */
+    text-align: center;
+    color: #6b7280; /* Gray text color */
+    font-size: 0.875rem; /* Small font size */
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    color: #999; /* Default inactive color */
+}
+.icon-button:hover {
+    background-color: #eee;
+}
+.icon-button.active {
+    color: #333; /* Active color */
+    font-weight: 600; /* Make it bolder when active */
+}
+.text-content p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+
+}
+.text-content ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+.text-content li {
+    margin-bottom: 0.5rem;
+    font-size: 15px;
+}
+.project-item {
+    
+    padding: 0.75rem 1rem; /* Add padding for better hover effect */
+    padding-left: 0;
+    border-radius: 4px; /* Slightly rounded corners for project items */
+    transition: background-color 0.2s ease-in-out; /* Smooth transition for hover */
+    cursor: pointer; /* Indicate clickable */
+}
+.project-item:hover {
+    color: #000; 
+}
+.project-item-header {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+.project-item-secondary-text {
+    color: #666;
+    font-size: 0.9rem;
+}
+/* New style for the main heading (h1) based on the provided image */
+.main-heading {
+    font-family: 'Mulish', -apple-system, sans-serif; /* Ensure Mulish is used here too */
+    color: #3B3D40;
+    font-size: 19.2px; /* Specific font size */
+    font-weight: 600; /* Adjusted for Mulish to look similar to the image */
+}
+footer {
+    max-width: 768px; /* Match main content width */
+    width: 100%;
+    margin-top: 2rem; /* Space above footer */
+    padding: 1rem 2rem; /* Padding for footer */
+    border-top: 1px solid #e5e7eb; /* Border top for footer */
+    box-sizing: border-box; /* Include padding in width calculation */
+    text-align: center; /* This can be adjusted now with flexbox */
+    color: #6b7280; /* Gray text color */
+    font-size: 0.875rem; /* Small font size */
+    display: flex; /* Use flexbox for horizontal alignment */
+    justify-content: space-between; /* Space content evenly */
+    align-items: center; /* Vertically align items */
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    width: 100%; /* Ensure content takes full width of footer */
+    align-items: center;
+}
+
+.social-links a {
+    color: #6b7280; /* Gray text color for links */
+    text-decoration: none; /* Remove underline by default */
+    margin-left: 1rem; /* Space between links */
+    transition: color 0.2s ease-in-out;
+}
+
+.social-links a:hover {
+    color: #3b3d40; /* Darker gray on hover */
+    text-decoration: underline; /* Add underline on hover */
+}
+
+/* Ensure copyright text is not affected by link styles */
+.copyright {
+    /* No specific styles needed here unless you want to override footer defaults */
+}
