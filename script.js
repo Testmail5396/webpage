@@ -11,7 +11,7 @@ const backToProjectsButton = document.getElementById('back-to-projects');
 
 // Define project data
 const projectsData = [
-    { id: 'scripture-names', name: 'Scripture Names', description: 'An interactive list of names found in the Holy Bible, with meanings and origins.', externalLink: 'https://namescriptures.netlify.app/' }, // MODIFIED: Changed the externalLink to the Netlify domain
+    { id: 'scripture-names', name: 'Scripture Names', description: 'An interactive list of names found in the Holy Bible, with meanings and origins.', externalLink: 'https://namescriptures.netlify.app/' }, // MODIFIED: Direct link to your Netlify site
     { id: 'ai-powered-content-generator', name: 'AI-Powered Content Generator', description: 'Early stage development', fullContent: '<p>An experimental project leveraging AI models to generate creative content, such as short stories, marketing copy, and social media posts. Currently in its early development phase, focusing on prompt engineering and output refinement.</p><p>Technologies involved: Gemini API integration and natural language processing.</p><p>You can view the live demo <a href="https://www.example.com/ai-generator" target="_blank" class="text-blue-600 hover:underline">here</a>.</p>' },
     { id: 'photography-portfolio-curation', name: 'Photography Portfolio Curation', description: 'Selecting and refining best shots', fullContent: '<p>A continuous effort to curate and present a selection of my best photographic works. This involves reviewing thousands of images, post-processing, and organizing them into thematic collections for online display.</p><p>Focus areas: landscape, street, and portrait photography.</p>' },
     // Add new projects here like this:
@@ -33,11 +33,10 @@ function renderProjectList() {
         `;
         projectItem.addEventListener('click', () => {
             if (project.externalLink) {
-                // MODIFICATION 1: Change to navigate internally for external links
-                // This allows Netlify's rewrite rule to take effect.
-                navigateTo(project.externalLink);
+                // MODIFICATION: Directly navigate to the external link
+                window.location.href = project.externalLink;
             } else {
-                navigateTo('/projects/' + project.id); // Navigate internally
+                navigateTo('/projects/' + project.id); // Navigate internally for internal projects
             }
         });
         projectsContent.appendChild(projectItem);
@@ -51,11 +50,10 @@ function renderProjectDetail(projectId) {
         projectDetailTitle.textContent = project.name;
         projectDetailDescription.textContent = project.description;
         projectDetailFullContent.innerHTML = project.fullContent;
+    } else if (project && project.externalLink) {
+        // If an external link project is accessed directly via URL (e.g., /projects/scripture-names)
+        window.location.href = project.externalLink;
     }
-    // MODIFICATION 2: Remove the else if block that redirects via window.location.href
-    // This block is now redundant and causes issues as Netlify's rewrite handles this.
-    // If a direct URL for an externalLink project is somehow hit,
-    // the Netlify redirect will handle it before this JS even loads properly.
     else {
         projectDetailTitle.textContent = 'Project Not Found';
         projectDetailDescription.textContent = '';
@@ -83,9 +81,16 @@ function renderContent(path) {
         projectsButton.classList.add('active');
     } else if (path.startsWith('/projects/')) {
         const projectId = path.split('/projects/')[1];
+        const project = projectsData.find(p => p.id === projectId);
+
+        // If it's an external link, redirect immediately
+        if (project && project.externalLink) {
+            window.location.href = project.externalLink;
+            return; // Stop further rendering for this path
+        }
+
         renderProjectDetail(projectId);
         // Only show project detail content if it's an internal project with fullContent
-        const project = projectsData.find(p => p.id === projectId);
         if (project && !project.externalLink) {
             projectDetailContent.classList.remove('hidden');
         }
