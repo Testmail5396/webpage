@@ -34,7 +34,8 @@ function renderProjectList() {
         projectItem.addEventListener('click', () => {
             if (project.externalLink) {
                 // MODIFICATION: Directly navigate to the external link
-                window.location.href = project.externalLink;
+                window.open(project.externalLink, '_blank');
+
             } else {
                 navigateTo('/projects/' + project.id); // Navigate internally for internal projects
             }
