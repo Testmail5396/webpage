@@ -1,6 +1,9 @@
+[build]
+  publish = "public" # Or wherever your built files are located (e.g., ".")
+  command = "echo 'No build command specified, serving static files.'" # Or your actual build command if you have one
+  
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
 
