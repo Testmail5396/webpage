@@ -3,8 +3,4 @@
   to = "/index.html"
   status = 200
 
-[[redirects]]
-  from = "/projects/namescripture/*"  
-  to = "https://namescriptures.netlify.app/:splat" 
-  status = 200
-  force = true 
+
