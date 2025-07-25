@@ -1,9 +1,51 @@
+# ===============================================
+# Netlify Configuration for "webpage" Project
+# ===============================================
+
+# [build] section defines how Netlify should build and deploy your site.
+# For simple static sites with no specific build command (like npm run build),
+# we tell Netlify where to find the static files.
 [build]
-  publish = "public" # Or wherever your built files are located (e.g., ".")
-  command = "echo 'No build command specified, serving static files.'" # Or your actual build command if you have one
-  
+  # 'publish' specifies the directory that contains the deploy-ready HTML files and assets.
+  # Based on your GitHub screenshot, your index.html, script.js, style.css are in the root
+  # of your repository. So, we set publish to '.' (current directory).
+  publish = "."
+
+  # 'command' specifies the command to run during the build process.
+  # Since your project is a pure static site (HTML/CSS/JS) and doesn't
+  # require a build step (like transpiling JavaScript, compiling SASS, etc.),
+  # we don't need a complex command.
+  # We can simply omit it or use an 'echo' command if Netlify requires a 'command' field.
+  # Omitting it is usually fine for purely static sites.
+  # command = "" # You can leave this line out, or comment it.
+  # OR if you must have a command (less common for truly static sites):
+  # command = "echo 'Building static site...'"
+
+# [[redirects]] section defines URL redirect rules for your site.
+# This is crucial for Single Page Applications (SPAs) that use client-side routing.
+# It tells Netlify to serve 'index.html' for any path that doesn't directly
+# map to a file or directory. This allows your JavaScript to handle routing.
 [[redirects]]
+  # 'from' specifies the path pattern to match. '/*' matches all paths.
   from = "/*"
+  # 'to' specifies the target path to redirect/rewrite to.
+  # For an SPA, all paths should ideally serve your main HTML file.
   to = "/index.html"
+  # 'status' specifies the HTTP status code.
+  # A 200 status means it's a "rewrite" (the URL in the browser remains unchanged,
+  # but the content of index.html is served). This is what you want for client-side routing.
   status = 200
 
+# Optional: Force HTTPS
+# It's good practice to ensure all traffic goes over HTTPS.
+# [[redirects]]
+#   from = "http://*"
+#   to = "https://:host/:splat"
+#   status = 301
+
+# Optional: Redirect www to non-www (or vice versa) if you have a custom domain
+# Replace 'yourdomain.com' with your actual custom domain.
+# [[redirects]]
+#   from = "https://www.yourdomain.com/*"
+#   to = "https://yourdomain.com/:splat"
+#   status = 301
