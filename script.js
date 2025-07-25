@@ -32,8 +32,10 @@ function renderProjectList() {
             <p class="project-item-secondary-text">${project.description}</p>
         `;
         projectItem.addEventListener('click', () => {
-               if (project.externalLink) {
-                window.open(project.externalLink, '_blank'); // Open in new tab
+            if (project.externalLink) {
+                // MODIFICATION 1: Change to navigate internally for external links
+                // This allows Netlify's rewrite rule to take effect.
+                navigateTo(project.externalLink);
             } else {
                 navigateTo('/projects/' + project.id); // Navigate internally
             }
@@ -49,14 +51,11 @@ function renderProjectDetail(projectId) {
         projectDetailTitle.textContent = project.name;
         projectDetailDescription.textContent = project.description;
         projectDetailFullContent.innerHTML = project.fullContent;
-    } else if (project && project.externalLink) {
-        // If it's an external link, we've already redirected in renderProjectList,
-        // but for robustness, we could show a message or redirect again if somehow reached here.
-        projectDetailTitle.textContent = 'Redirecting...';
-        projectDetailDescription.textContent = '';
-        projectDetailFullContent.innerHTML = '<p>Please wait while we redirect you to the project.</p>';
-        window.location.href = project.externalLink;
     }
+    // MODIFICATION 2: Remove the else if block that redirects via window.location.href
+    // This block is now redundant and causes issues as Netlify's rewrite handles this.
+    // If a direct URL for an externalLink project is somehow hit,
+    // the Netlify redirect will handle it before this JS even loads properly.
     else {
         projectDetailTitle.textContent = 'Project Not Found';
         projectDetailDescription.textContent = '';
@@ -120,4 +119,3 @@ window.addEventListener('popstate', () => {
 document.addEventListener('DOMContentLoaded', () => {
     renderContent(location.pathname);
 });
-
