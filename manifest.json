@@ -1,0 +1,21 @@
+{
+  "name": "Scripture Names",
+  "short_name": "Scripture Names",
+  "description": "An interactive list of names found in the Holy Bible, with meanings and origins.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#FFF8E7",
+  "theme_color": "#8D6E63",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
