@@ -3,139 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#8D6E63">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <title>Scripture Names</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <title>Vikash - Product Person</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Mulish:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="antialiased">
-    <div class="container mx-auto px-2 p-4 sm:p-6 lg:p-8">
-        <header class="text-center mb-8 relative">
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold title-font">Scripture Names</h1>
-            <p class="mt-2 text-base sm:text-lg">An interactive list of names found in the Holy Bible, with meanings and origins.</p>
-            
-            <!-- Cart Icon -->
-            <div id="cart-icon" class="absolute top-0 right-0 cursor-pointer p-2" style="display: none;">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#5D4037]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+<body>
+    <header class="flex justify-between items-center">
+        <div class="flex space-x-4">
+            <button id="about-button" class="icon-button" aria-label="About">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
                 </svg>
-                <span id="cart-count" class="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold hidden">0</span>
-            </div>
-        </header>
-
-        <main class="bg-[#FFF8E7] p-2 sm:p-6 rounded-xl shadow-md border border-[#D7CCC8]">
-            <div class="mb-6 p-2 sm:p-4 border-b-2 border-dashed border-[#D7CCC8]">
-                <p class="text-center text-lg sm:text-xl">There are <strong id="name-count" class="text-xl sm:text-2xl title-font text-[#5D4037]">...</strong> names in this collection.</p>
-            </div>
-
-            <div id="controls" class="mb-6 space-y-4">
-                <!-- Main controls container. Column on mobile, row on desktop -->
-                <div class="flex flex-col lg:flex-row gap-4 items-center">
-
-                    <!-- Search Item: On its own row on mobile, takes ~40% on desktop -->
-                    <div class="relative w-full lg:w-auto lg:flex-grow-[2]">
-                        <input type="text" id="search-input" placeholder="Search for a name..." class="w-full p-3 pr-10 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition">
-                        <svg class="w-6 h-6 absolute top-1/2 right-3 -translate-y-1/2 text-[#A1887F]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    </div>
-
-                    <!-- Wrapper for filters and reset button: On its own row on mobile -->
-                    <div class="w-full lg:w-auto lg:flex-grow-[3] flex flex-wrap gap-4 items-center">
-                        <div class="relative flex-grow min-w-[160px]">
-                            <select id="book-filter" class="w-full p-3 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition bg-white pr-8"></select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#A1887F]"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
-                        </div>
-
-                        <div class="relative flex-grow min-w-[160px]">
-                            <select id="language-filter" class="w-full p-3 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition bg-white pr-8"></select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#A1887F]"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
-                        </div>
-
-                        <div class="relative flex-grow min-w-[160px]">
-                            <select id="gender-filter" class="w-full p-3 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition bg-white pr-8">
-                                <option value="">All Genders</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Unisex">Unisex</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#A1887F]"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
-                        </div>
-                        
-                        <div class="relative flex-grow min-w-[160px] md:hidden">
-                            <select id="alphabet-dropdown" class="w-full p-3 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition bg-white pr-8"></select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#A1887F]"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
-                        </div>
-
-                        <div class="relative">
-                            <button id="reset-btn" class="hidden w-full sm:w-auto text-gray-500 hover:text-red-600 transition p-3 rounded-lg flex items-center justify-center border-2 border-gray-200 hover:border-red-200 bg-gray-100 hover:bg-red-50">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                <span class="ml-2">Clear</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Desktop alphabet filter -->
-                <div id="alphabet-filter" class="hidden md:flex flex-wrap justify-center py-2 gap-2"></div>
-            </div>
-
-            <div id="name-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 min-h-[400px]"></div>
-
-            <div id="pagination-controls" class="flex flex-col sm:flex-row justify-between items-center mt-8 pt-4 border-t border-[#D7CCC8] gap-2 sm:gap-0">
-                <button id="prev-page" class="pagination-button px-4 py-2 rounded-lg disabled:opacity-50 w-full sm:w-auto">Previous</button>
-                <span id="page-info" class="text-sm font-medium"></span>
-                <button id="next-page" class="pagination-button px-4 py-2 rounded-lg disabled:opacity-50 w-full sm:w-auto">Next</button>
-            </div>
-        </main>
-
-        <footer class="site-footer mt-8">
-            <div class="footer-container flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
-                <div class="footer-left text-center sm:text-left">
-                    <div class="copyright mt-2 sm:mt-0">
-                        &copy; 2025 vikash mj &middot; All rights reserved
-                    </div>
-                </div>
-                <div class="footer-right text-center sm:text-right mt-2 sm:mt-0">
-                    <p>Created by <a href="https://www.vikashmj.in" target="_blank">vikash mj</a></p>                </div>
-            </div>
-        </footer>
-    </div>
-    
-    <!-- Saved Names Panel Overlay -->
-    <div id="panel-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40 transition-opacity"></div>
-
-    <!-- Saved Names Panel -->
-    <div id="saved-names-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-[#FFF8E7] shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col">
-        <div class="p-4 border-b border-[#D7CCC8] flex justify-between items-center">
-            <h2 class="text-xl font-bold title-font text-[#5D4037]">Saved Names</h2>
-            <button id="close-panel-btn" class="text-gray-600 hover:text-red-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <button id="projects-button" class="icon-button" aria-label="Projects">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
             </button>
         </div>
-        <div class="p-4 border-b border-[#D7CCC8] space-y-4">
-            <input type="text" id="saved-name-search" placeholder="Search in saved names..." class="w-full p-2 rounded-lg border-2 border-[#D7CCC8] focus:border-[#8D6E63] focus:ring-0 transition">
-            <div id="panel-filters" class="grid grid-cols-2 gap-4">
-                <select id="panel-language-filter" class="panel-select"></select>
-                <select id="panel-gender-filter" class="panel-select"></select>
+        <div></div>
+    </header>
+
+    <main class="text-content">
+        <section id="about-content" class="hidden">
+            <h1 class="main-heading mb-6">Vikash M J</h1>
+            <p class="text-lg mb-4">
+                I'm a product person at Zoho Corp.
+            </p>
+
+            <p class="mb-4">
+               I love exploring ideas that spark curiosity and creativity. Lately, I've been diving (somewhat deeply) into:
+            </p>
+
+            <ul class="list-disc pl-5 mb-6">
+                <li>Bible, Bible-related topics</li>
+                <li>Design & Design Thinking</li>
+                <li>Exploring visual storytelling</li>
+                <li>AI x UX enthusiast</li>
+                <li>Vibe Coding</li>
+            </ul>
+        </section>
+
+        <section id="projects-content" class="hidden">
+            <h2 class="text-xl font-medium mb-6">Projects</h2>
+        </section>
+
+        <section id="project-detail-content" class="hidden">
+            <h2 class="text-xl font-medium mb-6" id="project-detail-title"></h2>
+            <p id="project-detail-description" class="mb-4"></p>
+            <div id="project-detail-full-content"></div>
+            <button id="back-to-projects" class="mt-6 text-blue-600 hover:underline">← Back to Projects</button>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <span class="copyright">&copy; 2025 Vikash</span>
+            <div class="social-links">
+                <a href="mailto:vikashmj9004@gmail.com" target="_blank" rel="noopener noreferrer">Email</a>
+                <a href="https://www.linkedin.com/in/vikashmj9004/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                <a href="https://x.com/vikashmj9004" target="_blank" rel="noopener noreferrer">X</a>
             </div>
         </div>
-        <div id="saved-name-list" class="p-4 flex-grow overflow-y-auto">
-            <!-- Saved names will be injected here by JS -->
-        </div>
-        <div class="p-4 border-t border-[#D7CCC8] bg-white">
-            <button id="clear-all-btn" class="w-full px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition" style="display: none;">Clear All</button>
-        </div>
-    </div>
+    </footer>
 
-
-    <script src="index.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
