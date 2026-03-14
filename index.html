@@ -21,8 +21,19 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
             </button>
+            <button id="resume-button" class="icon-button" aria-label="Resume">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </button>
         </div>
-        <div></div>
+        <div>
+            <button id="download-resume-button" class="icon-button" aria-label="Download Resume" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </button>
+        </div>
     </header>
 
     <main class="text-content">
@@ -31,13 +42,13 @@
                 letter-spacing: 4.2px;
                 font-weight: bold;
             ">VIKASH MJ</h1>
-            
+
             <p class="text-lg mb-4">
                User Experience & Interface Designer at ZOHO.
             </p><br>
 
             <p class="mb-4">
-                I love exploring ideas that spark curiosity and creativity. Recently, I've been diving deeper into:            
+                I love exploring ideas that spark curiosity and creativity. Recently, I've been diving deeper into:
             </p>
 
             <ul class="list-disc pl-5 mb-6">
@@ -59,6 +70,159 @@
             <div id="project-detail-full-content"></div>
             <button id="back-to-projects" class="mt-6 text-blue-600 hover:underline">← Back to Projects</button>
         </section>
+
+        <section id="resume-content" class="hidden">
+            <div class="resume-page">
+
+                <div class="resume-header-block">
+                    <h1 class="main-heading mb-2" style="letter-spacing: 4.2px; font-weight: bold;">VIKASH MJ</h1>
+                    <p class="resume-subtitle">Sr. User Experience &amp; Interface Designer at Zoho</p>
+                    <div class="resume-tags">
+                        <span class="resume-tag">Enterprise SaaS UX</span>
+                        <span class="resume-tag">AI Product Design</span>
+                        <span class="resume-tag">ZIA Experience Design</span>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Profile</h3>
+                    <p>Senior Product Designer with 8+ years of experience designing enterprise SaaS products at Zoho. Currently working on AI-powered customer support experiences in Zoho Desk, focusing on ZIA (Zoho Intelligent Assistant) features that improve agent productivity and decision-making.</p>
+                    <p>Experienced in enterprise UX, interaction design, AI-assisted workflows, and scalable product systems. Strong product thinker with hands-on experience in prototyping, experimentation, and cross-functional collaboration with engineering and product teams.</p>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Impact</h3>
+                    <ul>
+                        <li>Designed AI-driven workflows that reduced support response time by 50%+ in key scenarios.</li>
+                        <li>Built multiple AI-assisted features that help support agents process tickets faster and respond more effectively.</li>
+                        <li>Contributed to enterprise features used by thousands of support agents globally.</li>
+                    </ul>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Experience</h3>
+                    <div class="resume-role">
+                        <div class="resume-role-header">
+                            <span class="resume-role-title">Senior Product Designer</span>
+                            <span class="resume-role-date">2017 – Present</span>
+                        </div>
+                        <p class="resume-role-company">Zoho Corporation</p>
+                        <p>Working on Zoho Desk, designing AI-powered customer support tools for enterprise teams. Focused on building intelligent experiences powered by ZIA (Zoho Intelligent Assistant) that help agents handle support tickets faster and with better context.</p>
+                        <p class="resume-contributions-label">Key Contributions</p>
+                        <ul>
+                            <li>Designed AI ticket thread summarization to help agents quickly understand long support conversations.</li>
+                            <li>Designed AI reply assistant that generates contextual responses using knowledge base data.</li>
+                            <li>Built AI-driven support workflows that significantly reduce agent effort and response time.</li>
+                            <li>Designed sentiment detection and tone analysis features for customer support conversations.</li>
+                            <li>Simplified complex multi-step support workflows into AI-assisted actions.</li>
+                            <li>Designed Guided Conversations, a chatbot builder for support automation.</li>
+                            <li>Designed enterprise analytics and reporting interfaces used by support teams to monitor performance.</li>
+                            <li>Designed third-party extension discovery experience for Zoho Desk Marketplace.</li>
+                            <li>Contributed reusable components to internal design systems using Figma.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">AI Feature Work</h3>
+                    <p class="resume-contributions-label">ZIA for Zoho Desk</p>
+                    <ul>
+                        <li>AI Reply Assistant</li>
+                        <li>Ticket Thread Summarization</li>
+                        <li>Sentiment Detection</li>
+                        <li>Knowledge Base Grounded Answers</li>
+                        <li>Agent Productivity Tools</li>
+                        <li>Conversational AI Workflows (Guided Conversations in Zoho Desk)</li>
+                    </ul>
+                    <p>These features focus on automating repetitive support tasks, reducing cognitive load, and improving response quality for support agents.</p>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">AI-Assisted Design Experiments</h3>
+                    <p>Actively exploring AI-assisted design workflows to accelerate product design and prototyping.</p>
+                    <ul>
+                        <li>Used Figma Make to generate workable prototypes directly from design ideas.</li>
+                        <li>Used Claude + Figma MCP to experiment with AI-generated UI, product interfaces, and design system components.</li>
+                        <li>Explored workflows where AI assists in generating, editing, and scaling design systems.</li>
+                    </ul>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Personal Projects</h3>
+                    <div class="resume-project">
+                        <span class="resume-project-name">BibleHere</span>
+                        <span class="resume-project-desc">A digital Bible reading web application designed to help users explore scripture in a clean and focused reading experience. <a href="https://www.biblehere.com" target="_blank" rel="noopener noreferrer">www.biblehere.com</a></span>
+                    </div>
+                    <div class="resume-project">
+                        <span class="resume-project-name">WireSketch</span>
+                        <span class="resume-project-desc">A lightweight UI wireframing tool inspired by Balsamiq, built for quickly sketching interface ideas and early-stage product thinking.</span>
+                    </div>
+                    <div class="resume-project">
+                        <span class="resume-project-name">Other Experiments</span>
+                        <span class="resume-project-desc">Built several experimental tools and small applications using AI-assisted design workflows and Figma-based prototyping. Currently exploring AI-powered product design workflows, including generating interfaces, editing design systems, and rapid product prototyping. Design explorations and experiments are regularly shared on LinkedIn.</span>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Skills</h3>
+                    <div class="resume-grid">
+                        <span>Interaction Design</span>
+                        <span>AI Experience Design</span>
+                        <span>Enterprise SaaS UX</span>
+                        <span>Product Thinking</span>
+                        <span>Design Systems</span>
+                        <span>Prototyping</span>
+                        <span>Wireframing</span>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Tools</h3>
+                    <div class="resume-grid">
+                        <span>Figma (Advanced)</span>
+                        <span>Adobe Photoshop</span>
+                        <span>Adobe After Effects</span>
+                        <span>Adobe Premiere Pro</span>
+                        <span>Claude + Figma MCP</span>
+                        <span>Creative Coding Tools</span>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Leadership</h3>
+                    <ul>
+                        <li>Mentored junior designers in building Android and iOS applications</li>
+                        <li>Participated in design hiring interviews</li>
+                        <li>Led feature execution in cross-functional product teams</li>
+                        <li>Created training materials and documentation for shipped features</li>
+                    </ul>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Education</h3>
+                    <div class="resume-education">
+                        <div class="resume-edu-item">
+                            <span class="resume-edu-degree">Visual Design Practice</span>
+                            <span class="resume-edu-school">Zoho University. Tenkasi - 2015-2017</span>
+                        </div>
+                        <div class="resume-edu-item">
+                            <span class="resume-edu-degree">Diploma in Mechanical Engineering</span>
+                            <span class="resume-edu-school">Nagercoil - 2012-2015</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resume-section">
+                    <h3 class="resume-section-title">Contact</h3>
+                    <div class="resume-contact-links">
+                        <a href="mailto:vikashmj9004@gmail.com">Email</a>
+                        <a href="https://www.linkedin.com/in/vikashmj9004/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                        <a href="https://x.com/vikashmj9004" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
     </main>
 
     <footer>
@@ -72,6 +236,7 @@
         </div>
     </footer>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
