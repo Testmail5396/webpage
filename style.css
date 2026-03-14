@@ -36,6 +36,9 @@ footer {
     text-align: center;
     color: #6b7280; /* Gray text color */
     font-size: 0.875rem; /* Small font size */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .icon-button {
@@ -52,7 +55,7 @@ footer {
 }
 .icon-button.active {
     color: #333; /* Active color */
-    font-weight: 600; /* Make it bolder when active */
+    background-color: #eee; /* Match hover style */
 }
 .text-content p {
     margin-bottom: 1rem;
@@ -70,7 +73,7 @@ footer {
     line-height:32px;
 }
 .project-item {
-    
+
     padding: 0.75rem 1rem; /* Add padding for better hover effect */
     padding-left: 0;
     border-radius: 4px; /* Slightly rounded corners for project items */
@@ -78,7 +81,7 @@ footer {
     cursor: pointer; /* Indicate clickable */
 }
 .project-item:hover {
-    color: #000; 
+    color: #000;
 }
 .project-item-header {
     font-weight: 500;
@@ -94,20 +97,6 @@ footer {
     color: #3B3D40;
     font-size: 22px; /* Specific font size */
     font-weight: 600; /* Adjusted for Mulish to look similar to the image */
-}
-footer {
-    max-width: 768px; /* Match main content width */
-    width: 100%;
-    margin-top: 2rem; /* Space above footer */
-    padding: 1rem 2rem; /* Padding for footer */
-    border-top: 1px solid #e5e7eb; /* Border top for footer */
-    box-sizing: border-box; /* Include padding in width calculation */
-    text-align: center; /* This can be adjusted now with flexbox */
-    color: #6b7280; /* Gray text color */
-    font-size: 0.875rem; /* Small font size */
-    display: flex; /* Use flexbox for horizontal alignment */
-    justify-content: space-between; /* Space content evenly */
-    align-items: center; /* Vertically align items */
 }
 
 .footer-content {
@@ -132,4 +121,179 @@ footer {
 /* Ensure copyright text is not affected by link styles */
 .copyright {
     /* No specific styles needed here unless you want to override footer defaults */
+}
+
+/* Resume Button */
+.resume-button {
+    background: none;
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-family: 'Mulish', -apple-system, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #999;
+    transition: all 0.2s ease-in-out;
+}
+.resume-button:hover {
+    background-color: #f9fafb;
+    color: #333;
+    border-color: #9ca3af;
+}
+.resume-button.active {
+    color: #333;
+    border-color: #333;
+    font-weight: 600;
+}
+
+.resume-download-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+/* Resume Page */
+.resume-page {
+    /* Inherits text-content styles */
+}
+
+.resume-header-block {
+    margin-bottom: 2.5rem;
+}
+
+.resume-subtitle {
+    font-size: 1.05rem;
+    color: #555;
+    margin-bottom: 1rem;
+    font-weight: 400;
+}
+
+.resume-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.resume-tag {
+    font-size: 0.8rem;
+    color: #666;
+    background-color: #f3f4f6;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    font-weight: 500;
+}
+
+.resume-section {
+    margin-bottom: 2.25rem;
+}
+
+.resume-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #999;
+    margin-bottom: 1rem;
+}
+
+.resume-role {
+    /* Role block */
+}
+
+.resume-role-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.15rem;
+}
+
+.resume-role-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #3b3d40;
+}
+
+.resume-role-date {
+    font-size: 0.85rem;
+    color: #999;
+    white-space: nowrap;
+}
+
+.resume-role-company {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.resume-contributions-label {
+    font-weight: 500;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.resume-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.resume-grid span {
+    font-size: 0.85rem;
+    color: #555;
+    background-color: #f3f4f6;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+}
+
+.resume-project {
+    padding: 0.5rem 0;
+}
+
+.resume-project-name {
+    font-weight: 500;
+    color: #3b3d40;
+    display: block;
+    margin-bottom: 0.15rem;
+}
+
+.resume-project-desc {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.resume-education {
+    /* Education container */
+}
+
+.resume-edu-item {
+    margin-bottom: 0.75rem;
+}
+
+.resume-edu-degree {
+    font-weight: 500;
+    color: #3b3d40;
+    display: block;
+}
+
+.resume-edu-school {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.resume-contact-links {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.resume-contact-links a {
+    color: #555;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease-in-out;
+}
+
+.resume-contact-links a:hover {
+    color: #3b3d40;
+    text-decoration: underline;
 }
