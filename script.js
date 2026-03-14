@@ -1,13 +1,16 @@
 // Get references to buttons and content sections
 const aboutButton = document.getElementById('about-button');
 const projectsButton = document.getElementById('projects-button');
+const resumeButton = document.getElementById('resume-button');
 const aboutContent = document.getElementById('about-content');
 const projectsContent = document.getElementById('projects-content');
 const projectDetailContent = document.getElementById('project-detail-content');
+const resumeContent = document.getElementById('resume-content');
 const projectDetailTitle = document.getElementById('project-detail-title');
 const projectDetailDescription = document.getElementById('project-detail-description');
 const projectDetailFullContent = document.getElementById('project-detail-full-content');
 const backToProjectsButton = document.getElementById('back-to-projects');
+const downloadResumeButton = document.getElementById('download-resume-button');
 
 
 // PROJECTS LIST
@@ -114,9 +117,12 @@ function renderContent(path) {
 aboutContent.classList.add('hidden');
 projectsContent.classList.add('hidden');
 projectDetailContent.classList.add('hidden');
+resumeContent.classList.add('hidden');
 
 aboutButton.classList.remove('active');
 projectsButton.classList.remove('active');
+resumeButton.classList.remove('active');
+downloadResumeButton.style.display = 'none';
 
 
 if (path === '/' || path === '/about') {
@@ -131,6 +137,14 @@ else if (path === '/projects') {
 renderProjectList();
 projectsContent.classList.remove('hidden');
 projectsButton.classList.add('active');
+
+}
+
+else if (path === '/vikashresume') {
+
+resumeContent.classList.remove('hidden');
+resumeButton.classList.add('active');
+downloadResumeButton.style.display = 'block';
 
 }
 
@@ -159,6 +173,8 @@ aboutButton.addEventListener('click', () => navigateTo('/about'));
 
 projectsButton.addEventListener('click', () => navigateTo('/projects'));
 
+resumeButton.addEventListener('click', () => navigateTo('/vikashresume'));
+
 backToProjectsButton.addEventListener('click', () => navigateTo('/projects'));
 
 
@@ -168,6 +184,24 @@ window.addEventListener('popstate', () => {
 renderContent(location.pathname);
 
 });
+
+
+// Download Resume as PDF
+function generatePDF() {
+const element = document.querySelector('#resume-content .resume-page');
+html2pdf()
+  .set({
+    margin: 10,
+    filename: 'Vikash_MJ_Resume.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  })
+  .from(element)
+  .save();
+}
+
+downloadResumeButton.addEventListener('click', generatePDF);
 
 
 // Initial load
