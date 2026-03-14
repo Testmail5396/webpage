@@ -92,7 +92,7 @@ footer {
 .main-heading {
     font-family: 'Mulish', -apple-system, sans-serif; /* Ensure Mulish is used here too */
     color: #3B3D40;
-    font-size: 19.2px; /* Specific font size */
+    font-size: 22px; /* Specific font size */
     font-weight: 600; /* Adjusted for Mulish to look similar to the image */
 }
 footer {
