@@ -20,7 +20,7 @@ const projectsData = [
 id: 'tamil-bible',
 name: 'Tamil Bible App',
 description: 'A Bible reading and study app with multiple tools for deeper scripture engagement.',
-externalLink: 'https://tamilbible.netlify.app/books'
+externalLink: 'https://biblehere.com/books'
 },
 
 {
