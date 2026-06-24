@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+    background-color: #F2F2F5;
+    color: #1D1D1F;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: -0.012em;
+  }
+
+  /* Hidden scrollbar — still scrollable */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  * { scrollbar-width: none; }
+
+  ::selection { background: rgba(0, 122, 255, 0.15); color: #1D1D1F; }
+}
+
+@layer components {
+  /* ── Buttons ─────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-[7px]
+           bg-[#1D1D1F] hover:bg-[#2C2C2E] active:bg-black active:scale-[0.98]
+           text-white text-[12px] font-semibold rounded-lg
+           transition-all duration-150 select-none shadow-[0_1px_2px_rgba(0,0,0,0.15)];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-[7px]
+           bg-white hover:bg-[#F9F9FB] active:bg-[#F2F2F5] active:scale-[0.98]
+           text-[#3A3A3C] text-[12px] font-semibold rounded-lg
+           border border-[#D1D1D6]
+           transition-all duration-150 select-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-[6px]
+           text-[#636366] hover:text-[#1D1D1F] hover:bg-[#EBEBED]
+           text-[12px] font-medium rounded-lg
+           transition-all duration-150 select-none;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-[7px]
+           text-red-600 hover:bg-red-50/80 active:bg-red-100
+           text-[12px] font-medium rounded-lg
+           transition-all duration-150 select-none;
+  }
+
+  /* ── Inputs ──────────────────────────────── */
+  .input-field {
+    @apply w-full px-3 py-2 text-[13px] text-[#1D1D1F] bg-[#F9F9FB] rounded-lg
+           border border-[#D1D1D6] outline-none
+           transition-all duration-150
+           placeholder:text-[#BABAC2]
+           hover:border-[#AEAEB2] hover:bg-white
+           focus:bg-white focus:border-[#007AFF] focus:ring-2 focus:ring-[rgba(0,122,255,0.1)];
+  }
+  .label {
+    @apply block text-[10.5px] font-semibold text-[#8E8E93] mb-1.5 uppercase tracking-widest;
+  }
+
+  /* ── Card ────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-2xl border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.04)];
+  }
+
+  /* ── Section title ──────────────────────── */
+  .section-title {
+    @apply text-[10.5px] font-semibold text-[#8E8E93] uppercase tracking-widest;
+  }
+}

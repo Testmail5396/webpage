@@ -50,6 +50,27 @@ id: 'sticky-wall',
 name: 'Sticky Wall',
 description: 'A digital sticky notes wall to capture and organize ideas visually.',
 externalLink: 'https://full-tidy-20776308.figma.site/'
+},
+
+{
+id: 'isometric-city',
+name: 'Isometric City',
+description: 'An interactive isometric city built with Three.js, Asterbrook.',
+externalLink: 'apps-isometric-city/'
+},
+
+{
+id: 'zlink',
+name: 'zLink',
+description: 'A shared link library for teams. Save Figma links, design references, and resources on one page so they\'re searchable months later instead of getting lost in chat history.',
+externalLink: 'apps-zlink/build/'
+},
+
+{
+id: 'biblehere-landing',
+name: 'Landing Page',
+description: 'A minimal landing page for BibleHere, a distraction-free Bible reading experience.',
+externalLink: 'https://www.biblehere.com'
 }
 
 ];
