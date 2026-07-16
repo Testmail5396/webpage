@@ -1,6 +1,6 @@
 import http.server, socketserver, os, posixpath, urllib.parse
 
-PORT = 8000
+PORT = 8160
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 class SPAHandler(http.server.SimpleHTTPRequestHandler):
@@ -11,6 +11,10 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         if path != '/' and not os.path.exists(abs_path):
             self.path = '/index.html'
         return super().do_GET()
+
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
 
 os.chdir(ROOT)
 with socketserver.TCPServer(("", PORT), SPAHandler) as httpd:

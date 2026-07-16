@@ -1,0 +1,409 @@
+/* =========================================================
+   Photography section — styles
+   Built entirely on the site's existing design tokens
+   (--space-*, --radius-*, grayscale palette, Mulish font).
+   Chrome stays quiet and editorial; the photos are the focus.
+
+   Dark mode: page chrome (header, filters, toolbar, dialogs,
+   cards' own background) uses var(--c-*) tokens from style.css
+   and adapts automatically. A few things are DELIBERATELY left
+   as literal colors regardless of theme, because they sit ON
+   TOP OF PHOTOS (not page background) and must stay legible
+   against arbitrary image content in both themes:
+     - card focus/selected rings, drag/edit/delete/resize/
+       quicksize handle chips, the focal-point dot, the
+       caption gradient overlay + badge
+     - the lightbox (already a permanently-dark viewer by design)
+     - box-shadows and the modal backdrop scrim (standard to
+       keep these dark in both themes)
+   ========================================================= */
+
+/* Widen the content shell for the photo grid (reuses the same
+   pattern the Projects preview uses to break out of 768px). The
+   width CHANGE when entering/leaving this page is intentional; the
+   animated transition for that specific change is suppressed in
+   script.js (setPhotosMode) so it snaps instantly instead of easing —
+   Projects preview keeps its own eased transition untouched. */
+body.photos-mode main { max-width: var(--content-max-wide); }
+
+/* Owner sign-in icon sits at the bottom of the sidebar, subtly
+   separated from the page-navigation icons. Matches .icon-button. */
+/* Pushes itself (and every icon after it, in DOM order) down to the
+   bottom of the sidebar's flex column. Only ONE icon needs this — the
+   first of the bottom-anchored group — everything after it just follows
+   in normal flow using the sidebar's own `gap`, so spacing between the
+   bottom icons stays IDENTICAL to the spacing between the top nav icons. */
+.icon-button-bottom { margin-top: auto; }
+.owner-active { color: var(--c-text); }
+
+/* ---------------- header (centered, editorial) ---------------- */
+.pg-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.pg-header-main { display: flex; flex-direction: column; align-items: center; max-width: 60ch; }
+.pg-page-title {
+  font-family: 'Mulish', -apple-system, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--c-text);
+  margin: 0 0 var(--space-1);
+}
+.pg-page-desc {
+  color: var(--c-text-secondary);
+  font-size: 0.95rem;
+  max-width: 52ch;
+  margin: 0;
+  line-height: 1.5;
+}
+.pg-filters { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-0-5); }
+.pg-filter {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--c-text-tertiary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: color .2s, background-color .2s;
+}
+.pg-filter:hover { color: var(--c-text-strong); background: var(--c-surface); }
+/* Inverted chip: swapping bg/text (instead of hardcoding white-on-dark)
+   means this stays a correctly-inverted pill in both themes. */
+.pg-filter.active { color: var(--c-bg); background: var(--c-text); }
+
+/* ---------------- grid + cards ---------------- */
+.pg-grid { display: grid; gap: var(--pg-gap, 16px); width: 100%; }
+.pg-card {
+  position: relative;
+  border-radius: var(--pg-radius, 16px);
+  overflow: hidden;
+  background: var(--c-surface-2);
+  cursor: pointer;
+  outline: none;
+  isolation: isolate;
+}
+.pg-card:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3b3d40; }
+.pg-card-media { position: absolute; inset: 0; }
+.pg-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  /* --pg-focal-zoom is set inline per-photo (bento-grid.js) when the owner
+     has zoomed into a focal point; multiplying it here (instead of the img
+     carrying its own inline transform) lets the hover zoom below compose
+     with it instead of one silently overriding the other. */
+  transform: scale(calc(1.01 * var(--pg-focal-zoom, 1)));
+  transition: opacity .5s ease, transform .6s cubic-bezier(.2,.7,.2,1);
+}
+.pg-card.pg-loaded .pg-img { opacity: 1; }
+.pg-card:hover .pg-img { transform: scale(calc(1.045 * var(--pg-focal-zoom, 1))); }
+.pg-card.pg-error { background: var(--c-surface-2); }
+
+.pg-skeleton { position: absolute; inset: 0; background: linear-gradient(100deg, var(--c-skeleton-a) 30%, var(--c-skeleton-b) 50%, var(--c-skeleton-a) 70%); background-size: 200% 100%; animation: pg-shimmer 1.4s infinite; }
+.pg-card.pg-loaded .pg-skeleton { display: none; }
+@keyframes pg-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* meta overlay */
+.pg-card-meta {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  background: linear-gradient(to top, rgba(20,20,22,.72), rgba(20,20,22,0));
+  color: #fff;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+.pg-card:hover .pg-card-meta,
+.pg-card:focus-visible .pg-card-meta { opacity: 1; transform: translateY(0); }
+.pg-cat { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 1.4px; opacity: .82; }
+.pg-title { font-size: 0.95rem; font-weight: 600; }
+.pg-cap { font-size: 0.8rem; opacity: .88; }
+
+/* ---------------- edit affordances ---------------- */
+.pg-card.pg-editable { cursor: default; }
+.pg-card.pg-unpublished .pg-img { opacity: .55; }
+.pg-card.pg-selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3b3d40; }
+.pg-handle {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.92);
+  border: 1px solid #e5e7eb; border-radius: 50%;
+  color: #555; cursor: pointer;
+  opacity: 0; transition: opacity .18s, background-color .15s, color .15s, border-color .15s;
+  z-index: 3; padding: 0;
+}
+.pg-handle svg { width: 16px; height: 16px; }
+.pg-drag { position: absolute; top: var(--space-1); left: var(--space-1); cursor: grab; touch-action: none; }
+.pg-drag:active { cursor: grabbing; }
+/* Edit + delete grouped together at top-right, side by side. */
+.pg-handle-group-right { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; gap: 4px; z-index: 3; }
+.pg-quick-delete:hover { color: #b3261e; border-color: #e3b3b0; }
+.pg-card.pg-editable:hover .pg-handle,
+.pg-card.pg-selected .pg-handle { opacity: 1; }
+.pg-handle:hover { color: #111; border-color: #cbd0d6; }
+.pg-badge {
+  position: absolute; top: var(--space-1); left: 50%; transform: translateX(-50%);
+  background: rgba(20,20,22,.78); color: #fff;
+  font-size: 0.66rem; letter-spacing: .5px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: var(--radius-pill); z-index: 3;
+  opacity: 0; transition: opacity .18s;
+}
+.pg-card.pg-editable:hover .pg-badge, .pg-card.pg-selected .pg-badge { opacity: 1; }
+
+/* Inline size-preset bar — shown right on the card on hover/selection,
+   so a size can be changed without opening the edit dialog. Sits in the
+   row just under the drag/edit handles (8px-grid aligned). */
+.pg-quicksize {
+  position: absolute; left: var(--space-1); right: var(--space-1); top: var(--space-6);
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+  opacity: 0; transition: opacity .18s; z-index: 3;
+}
+.pg-quicksize::-webkit-scrollbar { display: none; }
+.pg-card.pg-editable:hover .pg-quicksize,
+.pg-card.pg-selected .pg-quicksize { opacity: 1; }
+.pg-qs-btn {
+  flex: 0 0 auto; min-width: 28px; height: 24px; padding: 0 var(--space-1);
+  font-family: inherit; font-size: 0.68rem; font-weight: 600;
+  border-radius: var(--radius-sm); background: rgba(255,255,255,.92);
+  border: 1px solid #e5e7eb; color: #555; cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.pg-qs-btn:hover { border-color: #9ca3af; color: #111; }
+.pg-qs-btn.active { background: var(--c-text); color: var(--c-bg); border-color: var(--c-text); }
+.pg-resize {
+  position: absolute; right: 3px; bottom: 3px;
+  width: 20px; height: 20px; border-radius: 5px;
+  background: rgba(255,255,255,.92); border: 1px solid #e5e7eb;
+  cursor: nwse-resize; touch-action: none;
+  opacity: 0; transition: opacity .18s; z-index: 4;
+  background-image: linear-gradient(135deg, transparent 45%, #999 45%, #999 55%, transparent 55%, transparent 70%, #999 70%, #999 80%, transparent 80%);
+  background-size: 12px 12px; background-position: center; background-repeat: no-repeat;
+}
+.pg-card.pg-selected .pg-resize { opacity: 1; }
+/* Lifted "picked up" feel while dragging — position/transform is driven
+   by JS (bento-grid.js) for a smooth 1:1 pointer-follow + settle animation. */
+.pg-card.pg-dragging {
+  z-index: 30;
+  cursor: grabbing;
+  box-shadow: 0 16px 32px rgba(0,0,0,.20), 0 2px 8px rgba(0,0,0,.08);
+}
+.pg-card.pg-resizing { z-index: 20; }
+
+.pg-empty { color: var(--c-text-tertiary); text-align: center; padding: var(--space-8) var(--space-2); font-size: 0.95rem; }
+
+/* ---------------- floating admin toolbar ---------------- */
+.pg-toolbar {
+  position: fixed; left: 50%; bottom: var(--space-3); transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--space-2);
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-pill);
+  box-shadow: 0 8px 30px rgba(0,0,0,.14);
+  padding: var(--space-1) var(--space-2);
+  z-index: 60;
+}
+.pg-toolbar[hidden] { display: none; }
+/* Only surface the admin toolbar while the photography page is open. */
+body:not(.photos-mode) .pg-toolbar { display: none; }
+.pg-save-state { font-size: 0.78rem; color: var(--c-text-tertiary); min-width: 0; white-space: nowrap; }
+.pg-save-state[data-state="saved"] { color: var(--c-success); }
+.pg-save-state[data-state="unsaved"] { color: var(--c-warning); }
+.pg-save-state[data-state="error"] { color: var(--c-danger); }
+.pg-save-state[data-state="saving"], .pg-save-state[data-state="uploading"] { color: var(--c-text-muted); }
+.pg-save-state:empty { display: none; }
+.pg-toolbar-actions { display: flex; gap: var(--space-0-5); }
+.pg-tbtn {
+  display: inline-flex; align-items: center; gap: var(--space-0-5);
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 0.82rem; color: var(--c-text-muted);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill);
+  transition: background-color .15s, color .15s;
+}
+.pg-tbtn svg { width: 16px; height: 16px; }
+.pg-tbtn:hover { background: var(--c-surface); color: var(--c-text-strongest); }
+/* Inverted chip — see .pg-filter.active note above. */
+.pg-tbtn-primary { background: var(--c-text); color: var(--c-bg); }
+.pg-tbtn-primary:hover { background: var(--c-invert-hover); color: var(--c-bg); }
+
+/* ---------------- dialogs ---------------- */
+.pg-dialog { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: var(--space-3); }
+.pg-dialog[hidden] { display: none; }
+.pg-dialog-backdrop { position: absolute; inset: 0; background: rgba(20,20,22,.4); opacity: 0; transition: opacity .18s; }
+.pg-dialog.pg-dialog-open .pg-dialog-backdrop { opacity: 1; }
+.pg-dialog-panel {
+  position: relative; background: var(--c-bg); border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,.22);
+  width: 100%; max-width: 560px; max-height: 88vh; overflow: auto;
+  padding: var(--space-4);
+  transform: translateY(10px) scale(.99); opacity: 0; transition: transform .2s, opacity .2s;
+}
+.pg-dialog.pg-dialog-open .pg-dialog-panel { transform: none; opacity: 1; }
+.pg-edit-dialog .pg-dialog-panel { max-width: 720px; }
+.pg-dialog-title { font-size: 1.05rem; font-weight: 600; color: var(--c-text); margin: 0 0 var(--space-3); }
+.pg-dialog-actions { display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-3); }
+.pg-spacer { flex: 1; }
+
+.pg-field { display: flex; flex-direction: column; gap: var(--space-0-5); margin-bottom: var(--space-2); font-size: 0.85rem; color: var(--c-text-muted); }
+.pg-field > span em { color: var(--c-text-tertiary); font-style: normal; font-size: 0.78rem; }
+.pg-field input[type="text"], .pg-field input[type="email"], .pg-field input[type="password"], .pg-field textarea {
+  font-family: inherit; font-size: 0.9rem; color: var(--c-text);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border-strong); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2); outline: none; resize: vertical;
+}
+.pg-field input:focus, .pg-field textarea:focus { border-color: var(--c-border-hover); }
+.pg-field-inline { flex-direction: row; align-items: center; gap: var(--space-1); }
+.pg-field-inline input { width: auto; }
+
+.pg-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+/* aspect-ratio is set inline per-photo (photography.js) to match the
+   card's actual gridWidth:gridHeight — so the crop you frame here is
+   exactly the shape the photo will be cropped to in the grid. */
+.pg-focal-stage { position: relative; border-radius: var(--radius-sm); overflow: hidden; background: var(--c-surface-2); cursor: crosshair; aspect-ratio: 4/3; max-height: 360px; margin: 0 auto; }
+.pg-focal-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .15s ease, object-position .15s ease; }
+.pg-focal-dot { position: absolute; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.4); transform: translate(-50%, -50%); pointer-events: none; }
+.pg-hint { font-size: 0.75rem; color: var(--c-text-tertiary); margin: var(--space-1) 0; }
+.pg-edit-row { margin-top: var(--space-1); }
+.pg-size-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); font-size: 0.85rem; color: var(--c-text-muted); }
+.pg-size-btns { display: flex; flex-wrap: wrap; gap: var(--space-0-5); }
+.pg-size-btn { font-family: inherit; font-size: 0.75rem; color: var(--c-text-secondary); border: 1px solid var(--c-border-strong); background: var(--c-bg); border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; }
+.pg-size-btn:hover { border-color: var(--c-border-hover); }
+.pg-size-btn.active { background: var(--c-text); color: var(--c-bg); border-color: var(--c-text); }
+
+.pg-btn { font-family: inherit; font-size: 0.85rem; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all .15s; }
+.pg-btn-primary { background: var(--c-text); color: var(--c-bg); }
+.pg-btn-primary:hover { background: var(--c-invert-hover); }
+.pg-btn-ghost { background: var(--c-bg); border-color: var(--c-border-strong); color: var(--c-text-muted); }
+.pg-btn-ghost:hover { border-color: var(--c-border-hover); color: var(--c-text-strongest); }
+.pg-btn-danger { background: var(--c-bg); border-color: var(--c-danger-border); color: var(--c-danger); }
+.pg-btn-danger:hover { background: var(--c-danger-bg); }
+.pg-link { background: none; border: none; color: var(--c-text); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+
+/* dropzone + upload list */
+.pg-dropzone { border: 1.5px dashed var(--c-border-strong); border-radius: var(--radius-lg); padding: var(--space-5) var(--space-3); text-align: center; color: var(--c-text-secondary); transition: border-color .15s, background-color .15s; }
+.pg-dropzone svg { color: var(--c-border-hover); margin-bottom: var(--space-1); }
+.pg-dropzone.pg-drag-over { border-color: var(--c-text); background: var(--c-bg-alt); }
+.pg-upload-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.pg-upload-item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-1) var(--space-2); font-size: 0.82rem; color: var(--c-text-muted); }
+.pg-up-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-up-status { color: var(--c-text-tertiary); }
+.pg-up-ok .pg-up-status { color: var(--c-success); }
+.pg-up-fail .pg-up-status { color: var(--c-danger); }
+.pg-up-bar { grid-column: 1 / -1; height: 3px; background: var(--c-skeleton-a); border-radius: 2px; overflow: hidden; }
+.pg-up-bar i { display: block; height: 100%; width: 0; background: var(--c-text); transition: width .3s; }
+/* The actual failure reason — shown plainly, not hidden in a hover tooltip. */
+.pg-up-reason { grid-column: 1 / -1; color: var(--c-danger); font-size: 0.76rem; line-height: 1.5; }
+
+/* bulk update — appears once at least one photo in this upload session
+   has finished uploading, so a whole batch can be tagged/published together */
+.pg-bulk-actions { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--c-border); }
+.pg-bulk-actions[hidden] { display: none; }
+.pg-bulk-label { font-size: 0.8rem; color: var(--c-text-secondary); margin: 0 0 var(--space-2); }
+.pg-bulk-count { font-weight: 600; color: var(--c-text); }
+.pg-bulk-row { display: flex; gap: var(--space-1); margin-bottom: var(--space-1); flex-wrap: wrap; }
+.pg-bulk-category { flex: 1; min-width: 140px; font-family: inherit; font-size: 0.85rem; color: var(--c-text); background: var(--c-bg); border: 1px solid var(--c-border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+.pg-bulk-category:focus { outline: none; border-color: var(--c-border-hover); }
+.pg-bulk-msg { font-size: 0.78rem; color: var(--c-success); min-height: 16px; margin: var(--space-1) 0 0; }
+.pg-bulk-msg:empty { min-height: 0; margin: 0; }
+
+/* ---------------- lightbox ---------------- */
+body.pg-lb-lock { overflow: hidden; }
+.pg-lightbox { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+.pg-lightbox[hidden] { display: none; }
+.pg-lb-backdrop { position: absolute; inset: 0; background: rgba(16,16,18,.94); opacity: 0; transition: opacity .2s; }
+.pg-lightbox.pg-lb-open .pg-lb-backdrop { opacity: 1; }
+.pg-lb-figure { position: relative; margin: 0; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; align-items: center; opacity: 0; transform: scale(.98); transition: opacity .22s, transform .22s; }
+.pg-lightbox.pg-lb-open .pg-lb-figure { opacity: 1; transform: none; }
+.pg-lb-img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: var(--radius-sm); background: #1c1c1e; }
+.pg-lightbox.pg-lb-loading .pg-lb-img { min-width: 40vw; min-height: 40vh; }
+.pg-lb-caption { color: #eaeaea; text-align: center; margin-top: var(--space-2); display: flex; flex-direction: column; gap: 2px; max-width: 60ch; }
+.pg-lb-title { font-weight: 600; font-size: 0.95rem; }
+.pg-lb-text { font-size: 0.85rem; color: #c9c9c9; }
+.pg-lb-sub { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.4px; color: #9a9a9a; }
+.pg-lb-btn { position: absolute; z-index: 2; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s; }
+.pg-lb-btn svg { width: 22px; height: 22px; }
+.pg-lb-btn:hover { background: rgba(255,255,255,.18); }
+.pg-lb-close { top: var(--space-3); right: var(--space-3); }
+.pg-lb-prev { left: var(--space-3); top: 50%; transform: translateY(-50%); }
+.pg-lb-next { right: var(--space-3); top: 50%; transform: translateY(-50%); }
+.pg-lb-counter { position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%); color: #b8b8b8; font-size: 0.78rem; z-index: 2; }
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 640px) {
+  .pg-page-title { font-size: 19px; }
+  .pg-edit-grid { grid-template-columns: 1fr; }
+  .pg-toolbar { left: var(--space-2); right: var(--space-2); transform: none; bottom: var(--space-2); justify-content: space-between; }
+  .pg-tbtn span { display: none; }
+  .pg-tbtn { padding: var(--space-1); }
+  .pg-save-state { font-size: 0.7rem; }
+  .pg-lb-prev { left: var(--space-1); }
+  .pg-lb-next { right: var(--space-1); }
+  .pg-card-meta { opacity: 1; transform: none; } /* touch: always show a hint */
+}
+
+/* honor reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pg-img, .pg-card-meta, .pg-lb-figure, .pg-dialog-panel { transition: none; }
+  .pg-skeleton { animation: none; }
+}
+
+/* =========================================================
+   Owner-mode additions (v2): login, profile, presets, footer
+   All spacing on the 8px system.
+   ========================================================= */
+
+/* ---- public footer (copyright + social) ---- */
+.pg-footer {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--c-border);
+  color: var(--c-text-tertiary); font-size: 0.8rem;
+}
+.pg-footer[hidden] { display: none; }
+.pg-social { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.pg-social a { color: var(--c-text-secondary); text-decoration: none; }
+.pg-social a:hover { color: var(--c-text); text-decoration: underline; }
+
+/* ---- login dialog ---- */
+.pg-login-panel { max-width: 400px; text-align: center; }
+.pg-login-sub { color: var(--c-text-secondary); font-size: 0.9rem; margin: 0 0 var(--space-3); line-height: 1.5; }
+.pg-login-body { display: flex; flex-direction: column; gap: var(--space-2); align-items: stretch; }
+.pg-gbtn { display: flex; justify-content: center; min-height: 40px; }
+.pg-login-msg { font-size: 0.82rem; color: var(--c-warning); min-height: 16px; margin: var(--space-2) 0 0; }
+.pg-login-msg:empty { min-height: 0; }
+
+/* ---- profile / settings dialog ---- */
+.pg-profile-row { display: flex; gap: var(--space-3); align-items: flex-start; margin-bottom: var(--space-2); }
+.pg-avatar-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex-shrink: 0; }
+.pg-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--c-surface-2); border: 1px solid var(--c-border); }
+.pg-avatar-btn { padding: var(--space-0-5) var(--space-2); font-size: 0.78rem; }
+.pg-profile-fields { flex: 1; min-width: 0; }
+.pg-social-list { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-1); }
+.pg-social-row { display: flex; gap: var(--space-1); align-items: center; }
+.pg-social-row input { flex: 1; min-width: 0; font-family: inherit; font-size: 0.85rem; color: var(--c-text); background: var(--c-bg); border: 1px solid var(--c-border-strong); border-radius: var(--radius-sm); padding: var(--space-0-5) var(--space-1); }
+.pg-social-row input:focus { outline: none; border-color: var(--c-border-hover); }
+.pg-icon-x { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--c-border-strong); background: var(--c-bg); border-radius: var(--radius-sm); color: var(--c-text-tertiary); font-size: 18px; line-height: 1; cursor: pointer; }
+.pg-icon-x:hover { color: var(--c-danger); border-color: var(--c-danger-border); }
+
+/* ---- edit dialog: filename + span controls ---- */
+.pg-filename { font-size: 0.75rem; color: var(--c-text-tertiary); margin: 0 0 var(--space-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Zoom slider under the focal-point stage — pairs with focal point to
+   give real cropping power (zoom in, then re-click to recenter). */
+.pg-zoom-row { display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); font-size: 0.8rem; color: var(--c-text-secondary); }
+.pg-zoom-row span:first-child { flex-shrink: 0; }
+.pg-f-zoom { flex: 1; accent-color: var(--c-text); }
+.pg-zoom-val { flex-shrink: 0; min-width: 3.2em; text-align: right; color: var(--c-text); font-weight: 500; }
+
+/* size preset buttons already styled via .pg-size-btn */
+.pg-size-btns { gap: var(--space-1); }

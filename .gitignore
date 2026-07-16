@@ -1,2 +1,11 @@
-apps-zlink/node_modules/
-apps-zlink/.env
+# Environment secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Node (only present when using the Supabase functions)
+node_modules/
+netlify/functions/node_modules/
+
+# OS
+.DS_Store

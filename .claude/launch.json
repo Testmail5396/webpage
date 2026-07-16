@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "webpage",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["serve.py"],
+      "port": 8160
+    },
+    {
+      "name": "designfolio",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps-zlink", "start"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "isometric-city",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8001", "--directory", "apps-isometric-city"],
+      "port": 8001
+    }
+  ]
+}
