@@ -108,17 +108,23 @@
       rowUnit: 8        // base grid unit
     },
 
-    /* Predefined card sizes (grid spans on the 12-col system).
+    /* Predefined card sizes (grid spans on the 15-col desktop system).
        Kept short on purpose: uploads auto-size to match the photo's own
        orientation (see pickGridForImage in photography.js), so most photos
        never need a manual size change — these are just the few honest
-       shapes a photo naturally comes in, plus one "Feature" for an
-       occasional larger showcase image. */
+       shapes a photo naturally comes in, plus "Feature"/"Panorama" for an
+       occasional larger showcase image. `key` doubles as the lookup used
+       by bento-grid.js's mobile column-span table (presetKeyFor) — keep
+       it in sync with MOBILE_TYPE_SPAN/MOBILE_TYPE_HEIGHT there if this
+       list changes. Panorama's 9:3 = 3:1, matching the crop editor's own
+       "Panorama 3:1" aspect preset. */
     sizePresets: [
-      { key: 'portrait',  label: 'Portrait',  w: 3, h: 4 },
-      { key: 'square',    label: 'Square',    w: 3, h: 3 },
-      { key: 'landscape', label: 'Landscape', w: 4, h: 3 },
-      { key: 'feature',   label: 'Feature',   w: 6, h: 4 }
+      { key: 'portrait',       label: 'Portrait',       w: 3, h: 4 },
+      { key: 'square',         label: 'Square',         w: 3, h: 3 },
+      { key: 'landscape',      label: 'Landscape',      w: 4, h: 3 },
+      { key: 'wide-landscape', label: 'Wide Landscape', w: 6, h: 3 },
+      { key: 'feature',        label: 'Feature',        w: 6, h: 4 },
+      { key: 'panorama',       label: 'Panorama',       w: 9, h: 3 }
     ],
 
     /* localStorage keys (LOCAL mode persistence + drafts). */

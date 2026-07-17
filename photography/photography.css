@@ -372,6 +372,41 @@ body.pg-lb-lock { overflow: hidden; }
   .pg-card-meta { opacity: 1; transform: none; } /* touch: always show a hint */
 }
 
+/* ---------------- mobile: compact, image-focused layout ----------------
+   A separate block (not folded into the 640px one above) so it covers
+   the full mobile range requested here (up to 768px) without changing
+   the narrower rules above that were tuned specifically for <=640px. */
+@media (max-width: 768px) {
+  /* Title/description must read as secondary chrome, not compete with
+     the photos — shrunk well below the 640px rule above, tighter gaps
+     throughout the header so the gallery starts sooner. */
+  .pg-header { gap: var(--space-0-5); margin-bottom: var(--space-2); }
+  .pg-page-title { font-size: 14px; letter-spacing: 1.2px; margin-bottom: 2px; }
+  .pg-page-desc { font-size: 0.72rem; max-width: 34ch; }
+  .pg-filters { margin-top: var(--space-1); }
+
+  /* Filters/books: single horizontally-scrollable row instead of
+     wrapping onto multiple lines — same "hide the scrollbar, keep the
+     scroll" treatment already used for .pg-quicksize. */
+  .pg-filters, .pg-book-filters {
+    flex-wrap: nowrap; justify-content: flex-start;
+    overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px; /* keeps the touch scrollbar, if any, off the chip borders */
+  }
+  .pg-filters::-webkit-scrollbar, .pg-book-filters::-webkit-scrollbar { display: none; }
+  .pg-filter { flex: 0 0 auto; font-size: 0.76rem; padding: 4px var(--space-1-5, var(--space-1)); }
+  .pg-filter-sub { font-size: 0.7rem; }
+
+  /* Room for the fixed bottom nav (see style.css) below the last row —
+     generous enough to also clear the floating admin toolbar, which
+     sits just above the nav in admin mode (see .pg-toolbar below). */
+  .pg-grid-wrap { padding-bottom: calc(var(--bottom-nav-height) + var(--space-5)); }
+
+  /* Float above the new bottom nav instead of overlapping it. */
+  .pg-toolbar { bottom: calc(var(--bottom-nav-height) + var(--space-1)); }
+}
+
 /* honor reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .pg-img, .pg-card-meta, .pg-lb-figure, .pg-dialog-panel, .pg-placeholder { transition: none; }
@@ -430,3 +465,108 @@ body.pg-lb-lock { overflow: hidden; }
 
 /* size preset buttons already styled via .pg-size-btn */
 .pg-size-btns { gap: var(--space-1); }
+
+/* =========================================================
+   Free-form crop editor (photography/crop-editor.js)
+   ---------------------------------------------------------
+   Deliberately its own dialog subclass (not the standard
+   .pg-dialog-panel size) — it needs to be much larger than a
+   normal form dialog so the crop workspace has real room to work
+   with. Handle/grid colors are hardcoded (not theme tokens) for
+   the same reason the lightbox is: they sit on top of arbitrary
+   photo content in a permanently-dark workspace, in both themes.
+   ========================================================= */
+.pg-crop-panel {
+  width: 100%; max-width: 960px; max-height: 92vh;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3);
+}
+.pg-crop-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); }
+.pg-crop-head .pg-dialog-title { margin: 0; }
+.pg-crop-aspects { display: flex; flex-wrap: wrap; gap: 4px; }
+.pg-crop-aspect-btn {
+  font-family: inherit; font-size: 0.72rem; color: var(--c-text-secondary);
+  border: 1px solid var(--c-border-strong); background: var(--c-bg);
+  border-radius: var(--radius-pill); padding: 3px 10px; cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.pg-crop-aspect-btn:hover { border-color: var(--c-border-hover); }
+.pg-crop-aspect-btn.active { background: var(--c-text); color: var(--c-bg); border-color: var(--c-text); }
+
+.pg-crop-stage-wrap { flex: 1; min-height: 280px; display: flex; }
+.pg-crop-stage {
+  position: relative; flex: 1; overflow: hidden;
+  background: #101012; border-radius: var(--radius-sm);
+  touch-action: none; /* our own pointer handlers own drag/pinch — never let the page scroll/zoom underneath */
+  cursor: grab;
+}
+.pg-crop-stage:active { cursor: grabbing; }
+.pg-crop-img {
+  position: absolute; top: 50%; left: 50%;
+  transform-origin: center center;
+  user-select: none; pointer-events: none; /* the stage/box handle all interaction, not the <img> itself */
+  max-width: none; /* size is set explicitly in px by crop-editor.js, never let CSS auto-fit shrink it */
+}
+.pg-crop-box {
+  position: absolute;
+  border: 1.5px solid #fff;
+  /* Spotlight trick: an oversized shadow darkens everything OUTSIDE the
+     box; .pg-crop-stage's overflow:hidden clips it neatly to the stage
+     edges — no separate overlay elements needed. */
+  box-shadow: 0 0 0 100vmax rgba(10, 10, 12, .6);
+  cursor: move;
+}
+.pg-crop-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.35) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255,255,255,.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.35) 1px, transparent 1px);
+  background-position: 33.333% 0, 66.666% 0, 0 33.333%, 0 66.666%;
+  background-repeat: no-repeat;
+  background-size: 1px 100%, 1px 100%, 100% 1px, 100% 1px;
+}
+.pg-crop-handle {
+  position: absolute; width: 14px; height: 14px; margin: 0; padding: 0;
+  border-radius: 50%; background: #fff; border: 1.5px solid #3b3d40;
+  transform: translate(-50%, -50%);
+  touch-action: none;
+}
+.pg-crop-h-nw { top: 0; left: 0; cursor: nwse-resize; }
+.pg-crop-h-se { top: 100%; left: 100%; cursor: nwse-resize; }
+.pg-crop-h-ne { top: 0; left: 100%; cursor: nesw-resize; }
+.pg-crop-h-sw { top: 100%; left: 0; cursor: nesw-resize; }
+.pg-crop-h-n { top: 0; left: 50%; cursor: ns-resize; }
+.pg-crop-h-s { top: 100%; left: 50%; cursor: ns-resize; }
+.pg-crop-h-e { top: 50%; left: 100%; cursor: ew-resize; }
+.pg-crop-h-w { top: 50%; left: 0; cursor: ew-resize; }
+
+.pg-crop-controls { display: flex; flex-direction: column; gap: var(--space-1-5, var(--space-1)); flex-shrink: 0; }
+.pg-crop-zoom-row { display: flex; align-items: center; gap: var(--space-1); }
+.pg-crop-zoom-slider { flex: 1; accent-color: var(--c-text); }
+.pg-crop-actions-row { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.pg-crop-iconbtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0; padding: 0;
+  border: 1px solid var(--c-border-strong); background: var(--c-bg);
+  border-radius: var(--radius-sm); color: var(--c-text-muted); cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.pg-crop-iconbtn svg { width: 18px; height: 18px; }
+.pg-crop-iconbtn:hover { border-color: var(--c-border-hover); color: var(--c-text-strongest); }
+
+/* Mobile: near-fullscreen workspace, controls anchored to the bottom,
+   safe-area aware (notch/home-indicator devices). */
+@media (max-width: 640px) {
+  .pg-crop-dialog { padding: 0; }
+  .pg-crop-panel {
+    max-width: 100vw; max-height: 100vh; height: 100vh;
+    width: 100vw; border-radius: 0;
+    padding: calc(var(--space-2) + env(safe-area-inset-top)) calc(var(--space-2) + env(safe-area-inset-right))
+             calc(var(--space-2) + env(safe-area-inset-bottom)) calc(var(--space-2) + env(safe-area-inset-left));
+  }
+  .pg-crop-stage-wrap { min-height: 0; }
+  .pg-crop-aspects { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .pg-crop-aspects::-webkit-scrollbar { display: none; }
+}

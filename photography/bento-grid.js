@@ -76,21 +76,42 @@
     /* ---------- packing ---------- */
     // Card sizePresets (config.js) are authored as fractions of the
     // DESKTOP column count (e.g. Portrait's gridWidth:3 means "3 of 15
-    // columns" = 1/5 of a row). On mobile's much narrower column count,
-    // using that same raw number directly would clamp almost every card
-    // to the full row width (3 of 3, 4 of 4, ...) — which is exactly the
-    // "one image fills the screen" bug this fixes. So on mobile we
-    // rescale each card's span down to the SAME relative fraction of the
-    // mobile column count instead of reusing the desktop-relative number
-    // verbatim, deriving height from the original w:h ratio so the
-    // card's shape stays as faithful as small integer grid units allow.
+    // columns" = 1/5 of a row). Reusing that raw number on mobile's much
+    // narrower column count clamps almost every card to full row width —
+    // the "one image fills the screen" problem. Instead, mobile maps each
+    // card's PRESET TYPE to an explicit column-span/row-height, so the
+    // grid reads as a genuine multi-column mosaic instead of one column
+    // of near-square tiles: Square/Portrait stay narrow (1 column —
+    // Portrait just taller, so it isn't forced square), Landscape/Wide
+    // Landscape/Feature get progressively wider, and Panorama is always
+    // a full row. `cols` still clamps everything to however many mobile
+    // columns actually exist at the current breakpoint (2/3/4).
+    var MOBILE_TYPE_SPAN = { square: 1, portrait: 1, landscape: 2, 'wide-landscape': 3, feature: 3, panorama: Infinity };
+    var MOBILE_TYPE_HEIGHT = { square: 1, portrait: 2, landscape: 1, 'wide-landscape': 1, feature: 1, panorama: 1 };
+    // Maps a photo's stored gridWidth/gridHeight back to a preset key —
+    // exact match against config.js's sizePresets first; falls back to
+    // aspect-ratio buckets for legacy/custom shapes (e.g. from the old
+    // free-form resize handle, before it was removed) that don't
+    // exactly match any current preset.
+    function presetKeyFor(gridWidth, gridHeight) {
+      var presets = (window.PhotographyConfig.sizePresets) || [];
+      for (var i = 0; i < presets.length; i++) {
+        if (presets[i].w === gridWidth && presets[i].h === gridHeight) return presets[i].key;
+      }
+      var ar = (gridWidth || 1) / (gridHeight || 1);
+      if (ar < 0.85) return 'portrait';
+      if (ar <= 1.15) return 'square';
+      if (ar <= 1.6) return 'landscape';
+      if (ar <= 2.4) return 'wide-landscape';
+      return 'panorama';
+    }
     function effectiveSpan(gridWidth, gridHeight, cols) {
       var w = clamp(gridWidth || 1, 1, cols);
       var h = clamp(gridHeight || 1, 1, 8);
       if (!state.isMobile) return { w: w, h: h };
-      var refCols = window.PhotographyConfig.grid.columnsDesktop || 15;
-      w = clamp(Math.max(1, Math.round((gridWidth || 1) * cols / refCols)), 1, cols);
-      h = clamp(Math.max(1, Math.round(w * (gridHeight || 1) / (gridWidth || 1))), 1, 8);
+      var key = presetKeyFor(gridWidth, gridHeight);
+      w = clamp(MOBILE_TYPE_SPAN[key] || 1, 1, cols);
+      h = clamp(MOBILE_TYPE_HEIGHT[key] || 1, 1, 8);
       return { w: w, h: h };
     }
     function packedLayout() {

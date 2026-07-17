@@ -29,6 +29,7 @@
     /* Layout dimensions (all multiples of 8) */
     --sidebar-width: 88px;
     --sidebar-width-mobile: 56px;
+    --bottom-nav-height: 60px; /* mobile: sidebar becomes this fixed bottom bar, see @media (max-width: 768px) */
     --content-max: 768px;
     --content-max-wide: 1520px;
     --preview-list-width: 320px;
@@ -625,5 +626,51 @@ footer {
 
     .resume-contact-links {
         gap: var(--space-2);
+    }
+}
+
+/* =========================================================
+   Mobile (<=768px): bottom navigation instead of the left
+   sidebar. Placed AFTER the 640px block above on purpose — at
+   any width in their overlapping range, source order makes
+   these rules win, so the sidebar becomes a fixed bottom bar
+   everywhere under 768px rather than the narrow left strip the
+   640px block alone would produce. Site-wide (every page uses
+   the same #sidebar element), not just the photography page.
+   ========================================================= */
+@media (max-width: 768px) {
+    .sidebar {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-around;
+        border-right: none;
+        border-top: 1px solid var(--c-border);
+        padding: var(--space-1) var(--space-2);
+        padding-bottom: calc(var(--space-1) + env(safe-area-inset-bottom));
+        gap: 0;
+        z-index: 40;
+    }
+
+    /* In the vertical sidebar this pushes theme/owner to the bottom of
+       the column (see photography.css); in a single horizontal row
+       there's no "bottom" to push to — space-around already spaces
+       every icon evenly. */
+    .icon-button-bottom {
+        margin-top: 0;
+    }
+
+    .page-wrapper {
+        margin-left: 0;
+        padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+    }
+
+    body.preview-mode .page-wrapper {
+        padding-left: var(--space-2);
     }
 }
