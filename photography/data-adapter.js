@@ -369,7 +369,13 @@
       formData.append('api_key', grant.apiKey);
       formData.append('timestamp', grant.timestamp);
       formData.append('signature', grant.signature);
-      formData.append('public_id', grant.publicId);
+      // NOTE: the signed-params response spreads Cloudinary's own snake_case
+      // param names (public_id, allowed_formats, etc.) verbatim — only
+      // signature/apiKey/cloudName are added as camelCase extras. Reading
+      // grant.publicId here (undefined) sent the literal string "undefined"
+      // as the public_id, which never matched the server-signed value —
+      // "Invalid Signature" on every real upload.
+      formData.append('public_id', grant.public_id);
       formData.append('folder', grant.folder);
       formData.append('overwrite', grant.overwrite);
       formData.append('colors', grant.colors);
