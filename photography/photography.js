@@ -602,7 +602,7 @@
       '    <div class="pg-focal-stage"><img class="pg-focal-img" alt=""><span class="pg-focal-dot"></span></div>' +
       '    <p class="pg-hint">Click the image to set the focal point — the preview shows exactly how it will crop.</p>' +
       '    <div class="pg-zoom-row"><span>Zoom</span><input type="range" class="pg-f-zoom" min="1" max="2.5" step="0.05"><span class="pg-zoom-val">100%</span></div>' +
-      '    <div class="pg-edit-row"><button type="button" class="pg-btn pg-btn-ghost pg-replace">Replace photo</button><input type="file" accept="image/*" hidden class="pg-replace-input"></div>' +
+      '    <div class="pg-edit-row"><button type="button" class="pg-btn pg-btn-ghost pg-crop-open">Crop</button> <button type="button" class="pg-btn pg-btn-ghost pg-replace">Replace photo</button><input type="file" accept="image/*" hidden class="pg-replace-input"></div>' +
       '  </div>' +
       '  <div class="pg-fields">' +
       '    <p class="pg-filename" title="File name"></p>' +
@@ -721,37 +721,56 @@
         syncFocalAspect();
       });
     });
+    // Shared by "Replace photo" and "Crop" — both end up swapping the
+    // Cloudinary asset `editing` points at, so both need the exact same
+    // field updates, old-asset bookkeeping, and crop reset.
+    function applyReplacementUpload(up) {
+      if (editing.__pendingOldPublicId === undefined) editing.__pendingOldPublicId = editing.cloudinaryPublicId || null;
+      editing.imageUrl = up.imageUrl; editing.thumbnailUrl = up.thumbnailUrl;
+      editing.highResolutionUrl = up.highResolutionUrl; editing.originalImageUrl = up.originalImageUrl;
+      editing.originalWidth = up.originalWidth; editing.originalHeight = up.originalHeight;
+      editing.cloudinaryPublicId = up.cloudinaryPublicId || null;
+      editing.cloudinaryVersion = up.cloudinaryVersion || null;
+      editing.secureUrl = up.secureUrl || null;
+      editing.format = up.format || null;
+      editing.bytes = up.bytes || null;
+      editing.dominantColor = up.dominantColor || null;
+      editing.aspectRatio = up.aspectRatio || null;
+      // The new image (replaced OR freshly cropped) has a different
+      // subject/composition than whatever the old focal point framed —
+      // reset back to center/no-zoom rather than keep the old one.
+      editing.focalPointX = 0.5; editing.focalPointY = 0.5; editing.focalZoom = 1;
+      d.querySelector('.pg-focal-img').src = editing.imageUrl;
+      d.querySelector('.pg-f-zoom').value = 1;
+      d.querySelector('.pg-zoom-val').textContent = '100%';
+      positionFocalDot();
+      setSaveState('unsaved');
+    }
+
     var replaceInput = d.querySelector('.pg-replace-input');
     d.querySelector('.pg-replace').addEventListener('click', function () { replaceInput.click(); });
     replaceInput.addEventListener('change', function () {
       var f = replaceInput.files[0]; replaceInput.value = '';
       if (!f) return;
       setSaveState('uploading');
-      // Capture the CURRENT (about-to-be-replaced) public id before it's
-      // overwritten below — held on `editing` until the metadata save
-      // succeeds, at which point it's safe to delete the old Cloudinary
-      // asset (see the pg-save-photo handler). Not cleared here: if the
-      // admin replaces the photo again before saving, only the oldest id matters.
-      if (editing.__pendingOldPublicId === undefined) editing.__pendingOldPublicId = editing.cloudinaryPublicId || null;
-      DATA.uploadImage(f).then(function (up) {
-        editing.imageUrl = up.imageUrl; editing.thumbnailUrl = up.thumbnailUrl;
-        editing.highResolutionUrl = up.highResolutionUrl; editing.originalImageUrl = up.originalImageUrl;
-        editing.originalWidth = up.originalWidth; editing.originalHeight = up.originalHeight;
-        editing.cloudinaryPublicId = up.cloudinaryPublicId || null;
-        editing.cloudinaryVersion = up.cloudinaryVersion || null;
-        editing.secureUrl = up.secureUrl || null;
-        editing.format = up.format || null;
-        editing.bytes = up.bytes || null;
-        editing.dominantColor = up.dominantColor || null;
-        editing.aspectRatio = up.aspectRatio || null;
-        // A replaced photo likely has a different subject/composition —
-        // reset the crop back to center/no-zoom rather than keep the old one.
-        editing.focalPointX = 0.5; editing.focalPointY = 0.5; editing.focalZoom = 1;
-        d.querySelector('.pg-focal-img').src = editing.imageUrl;
-        d.querySelector('.pg-f-zoom').value = 1;
-        d.querySelector('.pg-zoom-val').textContent = '100%';
-        positionFocalDot();
-        setSaveState('unsaved');
+      DATA.uploadImage(f).then(applyReplacementUpload)
+        .catch(function (e) { console.error(e); setSaveState('error'); });
+    });
+
+    // Crop opens a dedicated free-form crop workspace (photography/
+    // crop-editor.js — vanilla JS + Canvas, no React/bundler needed) on
+    // the highest-resolution version of the current image, then uploads
+    // the exported crop through the SAME path a fresh upload/replace
+    // uses, so it becomes the new Cloudinary asset via applyReplacementUpload.
+    d.querySelector('.pg-crop-open').addEventListener('click', function () {
+      var src = editing.originalImageUrl || editing.secureUrl || editing.imageUrl;
+      window.PhotographyCropEditor.open(src, { format: editing.format }).then(function (result) {
+        if (!result) return; // cancelled
+        setSaveState('uploading');
+        var ext = result.blob.type === 'image/png' ? 'png' : 'jpg';
+        var base = (editing.fileName || 'photo').replace(/\.[^.]+$/, '');
+        var file = new File([result.blob], base + '-cropped.' + ext, { type: result.blob.type });
+        return DATA.uploadImage(file).then(applyReplacementUpload);
       }).catch(function (e) { console.error(e); setSaveState('error'); });
     });
     d.querySelector('.pg-delete').addEventListener('click', function () {
