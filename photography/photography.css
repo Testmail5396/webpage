@@ -10,7 +10,7 @@
    as literal colors regardless of theme, because they sit ON
    TOP OF PHOTOS (not page background) and must stay legible
    against arbitrary image content in both themes:
-     - card focus/selected rings, drag/edit/delete/resize/
+     - card focus/selected rings, drag/edit/delete/
        quicksize handle chips, the focal-point dot, the
        caption gradient overlay + badge
      - the lightbox (already a permanently-dark viewer by design)
@@ -196,16 +196,6 @@ body.photos-mode main { max-width: var(--content-max-wide); }
 }
 .pg-qs-btn:hover { border-color: #9ca3af; color: #111; }
 .pg-qs-btn.active { background: var(--c-text); color: var(--c-bg); border-color: var(--c-text); }
-.pg-resize {
-  position: absolute; right: 3px; bottom: 3px;
-  width: 20px; height: 20px; border-radius: 5px;
-  background: rgba(255,255,255,.92); border: 1px solid #e5e7eb;
-  cursor: nwse-resize; touch-action: none;
-  opacity: 0; transition: opacity .18s; z-index: 4;
-  background-image: linear-gradient(135deg, transparent 45%, #999 45%, #999 55%, transparent 55%, transparent 70%, #999 70%, #999 80%, transparent 80%);
-  background-size: 12px 12px; background-position: center; background-repeat: no-repeat;
-}
-.pg-card.pg-selected .pg-resize { opacity: 1; }
 /* Lifted "picked up" feel while dragging — position/transform is driven
    by JS (bento-grid.js) for a smooth 1:1 pointer-follow + settle animation. */
 .pg-card.pg-dragging {
@@ -213,7 +203,6 @@ body.photos-mode main { max-width: var(--content-max-wide); }
   cursor: grabbing;
   box-shadow: 0 16px 32px rgba(0,0,0,.20), 0 2px 8px rgba(0,0,0,.08);
 }
-.pg-card.pg-resizing { z-index: 20; }
 
 .pg-empty { color: var(--c-text-tertiary); text-align: center; padding: var(--space-8) var(--space-2); font-size: 0.95rem; }
 

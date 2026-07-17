@@ -6,7 +6,8 @@
      - collision-aware first-fit packing (no overlap, gaps
        minimized automatically)
      - drag to reorder (edit mode) with live reflow
-     - corner resize handle with unit snapping (edit mode)
+     - card size changes only via the fixed quicksize presets
+       (Portrait/Square/Landscape/Feature) — no free-form resize
      - persisted layout = order + card sizes (x/y derived so
        responsive breakpoints always produce a valid layout)
 
@@ -136,7 +137,6 @@
 
       var media = document.createElement('div');
       media.className = 'pg-card-media';
-      if (photo.aspectRatio) media.style.aspectRatio = String(photo.aspectRatio);
 
       // Instant fill so there's never a blank/white card before the real
       // image arrives: a tiny blurred Cloudinary placeholder if we have a
@@ -250,15 +250,9 @@
         el.appendChild(badge);
       }
 
-      var rz = document.createElement('span');
-      rz.className = 'pg-resize';
-      rz.setAttribute('aria-hidden', 'true');
-      el.appendChild(rz);
-
       buildQuickSize(el, photo);
 
       wireDrag(el, drag, photo);
-      wireResize(el, rz, photo);
     }
 
     /* ---------- inline size-preset bar (shown on hover, right on the card) ---------- */
@@ -490,43 +484,6 @@
       ordered.splice(targetIdx, 0, drag);
       ordered.forEach(function (p, i) { p.sortOrder = i + 1; });
       render();
-    }
-
-    /* ----- resize (corner handle, unit snapping) ----- */
-    function wireResize(el, handle, photo) {
-      var resizing = false, startX = 0, startY = 0, startW = 1, startH = 1;
-      handle.addEventListener('pointerdown', function (e) {
-        e.preventDefault(); e.stopPropagation();
-        resizing = true;
-        state.resizingId = photo.id;
-        startX = e.clientX; startY = e.clientY;
-        startW = photo.gridWidth || 1; startH = photo.gridHeight || 1;
-        handle.setPointerCapture(e.pointerId);
-        el.classList.add('pg-resizing');
-      });
-      handle.addEventListener('pointermove', function (e) {
-        if (!resizing) return;
-        var step = state.cellSize + state.gap;
-        var dw = Math.round((e.clientX - startX) / step);
-        var dh = Math.round((e.clientY - startY) / step);
-        var nw = clamp(startW + dw, 1, state.cols);
-        var nh = clamp(startH + dh, 1, 8);
-        if (nw !== photo.gridWidth || nh !== photo.gridHeight) {
-          photo.gridWidth = nw; photo.gridHeight = nh;
-          render();
-        }
-      });
-      function end(e) {
-        if (!resizing) return;
-        resizing = false;
-        state.resizingId = null;
-        el.classList.remove('pg-resizing');
-        try { handle.releasePointerCapture(e.pointerId); } catch (x) {}
-        suppressClick = true;
-        persistLayout();
-      }
-      handle.addEventListener('pointerup', end);
-      handle.addEventListener('pointercancel', end);
     }
 
     function persistLayout() {
