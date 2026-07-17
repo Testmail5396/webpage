@@ -4,25 +4,38 @@
    A single async interface used by the whole feature so the
    storage backend is swappable:
 
-     LocalAdapter    → browser localStorage (default, zero-config,
-                       fully working, used for verification).
-     SupabaseAdapter → calls the Netlify serverless functions,
-                       which do server-side ADMIN_EMAIL auth and
-                       talk to Supabase (Postgres + Storage) with
-                       the private service-role key. Activate by
-                       setting PhotographyConfig.backend='supabase'.
+     LocalAdapter      → browser localStorage (default, zero-config,
+                         fully working, used for verification). Only
+                         ever used for temporary/demo data — never the
+                         production image store.
+     CloudinaryAdapter → metadata reads/writes go through the Netlify
+                         serverless functions (server-side ADMIN_EMAIL
+                         auth, talk to Supabase Postgres with the
+                         private service-role key); image BINARIES are
+                         stored/delivered by Cloudinary — a signed
+                         upload grant lets the browser upload the
+                         original directly to Cloudinary, which then
+                         generates responsive/format-optimized variants
+                         on the fly via delivery URL transforms (no
+                         server-side image processing needed). Activate
+                         with backend='cloudinary'. See README-photography.md.
 
    Interface (all return Promises):
      getSettings()            → PhotographySettings
      saveSettings(patch)      → PhotographySettings   (admin)
      listAll()                → Photograph[]          (admin: incl. unpublished)
      listPublic()             → Photograph[]          (published only)
+     listPublicPage(cursor,limit,category) → {items,nextCursor,hasMore} (public; pagination)
      create(photo)            → Photograph            (admin)
      update(id, patch)        → Photograph            (admin)
      remove(id)               → void                  (admin)
      saveLayout(items)        → void                  (admin) [{id,gridX,gridY,gridWidth,gridHeight,sortOrder}]
-     uploadImage(file)        → {imageUrl, thumbnailUrl, highResolutionUrl,
-                                 originalImageUrl, originalWidth, originalHeight} (admin)
+     uploadImage(file, opts)  → {imageUrl, thumbnailUrl, highResolutionUrl,
+                                 originalImageUrl, originalWidth, originalHeight,
+                                 cloudinaryPublicId?, cloudinaryVersion?, secureUrl?,
+                                 format?, bytes?, dominantColor?, aspectRatio?} (admin)
+                                 opts: { onProgress(fraction), signal: AbortSignal }
+     cleanupAssets(publicId)  → void (admin, best-effort, no-op if unsupported/absent)
    ========================================================= */
 (function () {
   var CFG = window.PhotographyConfig;
@@ -98,8 +111,17 @@
     });
   }
 
+  /* Client-side guard mirroring the server allowlist (netlify/functions/
+     cloudinary-signature.js) — fails fast with a clear message instead of
+     waiting on a round-trip for something we can already tell is wrong.
+     The SERVER (and Cloudinary's own `allowed_formats` check against the
+     real uploaded bytes) still validates independently; this is only a
+     fast UX path. */
+  var ALLOWED_UPLOAD_TYPES = { 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'image/avif': 1 };
+  var MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
   /* =======================================================
-     LOCAL ADAPTER (default)
+     LOCAL ADAPTER (default — demo/dev only, never production images)
      ======================================================= */
   function LocalAdapter() {}
   LocalAdapter.prototype._readPhotos = function () {
@@ -140,15 +162,19 @@
   LocalAdapter.prototype.listPublic = function () {
     return Promise.resolve(this._readPhotos().filter(function (p) { return p.isPublished; }));
   };
+  LocalAdapter.prototype.listPublicPage = function () {
+    // Local mode never has enough rows to matter — return everything as one page.
+    return this.listPublic().then(function (items) { return { items: items, nextCursor: null, hasMore: false }; });
+  };
   LocalAdapter.prototype.create = function (photo) {
     var photos = this._readPhotos();
     var maxOrder = photos.reduce(function (m, p) { return Math.max(m, p.sortOrder || 0); }, 0);
     var rec = Object.assign({
       id: uid(),
-      title: '', caption: '', altText: '', category: '',
+      title: '', caption: '', altText: '', category: '', book: '',
       gridWidth: 1, gridHeight: 1, gridX: null, gridY: null,
-      focalPointX: 0.5, focalPointY: 0.5,
-      sortOrder: maxOrder + 1, isPublished: false, isSeed: false,
+      focalPointX: 0.5, focalPointY: 0.5, focalZoom: 1,
+      sortOrder: maxOrder + 1, isPublished: false, featured: false, isSeed: false,
       createdAt: nowISO(), updatedAt: nowISO()
     }, photo);
     photos.push(rec);
@@ -185,35 +211,46 @@
     this._writePhotos(photos);
     return Promise.resolve();
   };
-  LocalAdapter.prototype.uploadImage = function (file) {
+  LocalAdapter.prototype.uploadImage = function (file, opts) {
+    opts = opts || {};
+    if (opts.onProgress) opts.onProgress(0.1); // local processing is fast; a token milestone is enough
     // Produce optimized display + thumbnail + "high-res" locally.
     return Promise.all([
       toWebp(file, 1600, 0.82),  // display / high-res
       toWebp(file, 480, 0.7)     // thumbnail
     ]).then(function (res) {
       var big = res[0], thumb = res[1];
+      if (opts.onProgress) opts.onProgress(1);
       return {
         imageUrl: big.dataUrl,
         highResolutionUrl: big.dataUrl,
         originalImageUrl: big.dataUrl, // local mode keeps the largest processed copy
         thumbnailUrl: thumb.dataUrl,
         originalWidth: big.width,
-        originalHeight: big.height
+        originalHeight: big.height,
+        aspectRatio: big.width / big.height,
+        // No real Cloudinary asset in local mode — these stay null/absent
+        // so bento-grid.js/lightbox.js fall back to the plain imageUrl path.
+        cloudinaryPublicId: null, cloudinaryVersion: null, secureUrl: null,
+        format: 'webp', bytes: null, dominantColor: null
       };
     });
   };
+  LocalAdapter.prototype.cleanupAssets = function () { return Promise.resolve(); }; // nothing to clean up
 
   /* =======================================================
-     SUPABASE ADAPTER (production — calls Netlify functions)
-     Read paths hit Supabase directly via anon key + RLS
-     (public may only read published rows). All WRITE paths go
-     through Netlify functions that verify the admin email
-     server-side. See netlify/functions + supabase/*.sql.
+     REMOTE ADAPTER (shared base for Supabase- and R2-backed modes)
+     ---------------------------------------------------------
+     Metadata reads/writes are IDENTICAL regardless of where image
+     BINARIES live — both proxy to the same Netlify functions, which
+     do server-side ADMIN_EMAIL auth and talk to Supabase Postgres.
+     Only `uploadImage()` (and R2's extra `cleanupAssets()`) differ
+     by subclass. See netlify/functions + supabase/*.sql.
      ======================================================= */
-  function SupabaseAdapter() {
+  function RemoteAdapter() {
     this.fnBase = CFG.functionsBase;
   }
-  SupabaseAdapter.prototype._fn = function (name, opts) {
+  RemoteAdapter.prototype._fn = function (name, opts) {
     opts = opts || {};
     var headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
     var token = window.PhotographyAuth && window.PhotographyAuth.token();
@@ -221,37 +258,150 @@
     return fetch(this.fnBase + '/' + name, {
       method: opts.method || 'GET',
       headers: headers,
-      body: opts.body ? JSON.stringify(opts.body) : undefined
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: opts.signal
     }).then(function (r) {
       if (!r.ok) return r.text().then(function (t) { throw new Error(t || ('HTTP ' + r.status)); });
       return r.status === 204 ? null : r.json();
     });
   };
-  SupabaseAdapter.prototype.getSettings = function () { return this._fn('photos-settings'); };
-  SupabaseAdapter.prototype.saveSettings = function (patch) { return this._fn('photos-settings', { method: 'PUT', body: patch }); };
-  SupabaseAdapter.prototype.listAll = function () { return this._fn('photos-list?scope=all'); };
-  SupabaseAdapter.prototype.listPublic = function () { return this._fn('photos-list?scope=public'); };
-  SupabaseAdapter.prototype.create = function (photo) { return this._fn('photos-write', { method: 'POST', body: { op: 'create', photo: photo } }); };
-  SupabaseAdapter.prototype.update = function (id, patch) { return this._fn('photos-write', { method: 'POST', body: { op: 'update', id: id, patch: patch } }); };
-  SupabaseAdapter.prototype.remove = function (id) { return this._fn('photos-write', { method: 'POST', body: { op: 'delete', id: id } }); };
-  SupabaseAdapter.prototype.saveLayout = function (items) { return this._fn('photos-write', { method: 'POST', body: { op: 'layout', items: items } }); };
-  SupabaseAdapter.prototype.uploadImage = function (file) {
-    var self = this;
-    // Read the file, hand raw bytes to the upload function (which stores
-    // original + generated display/thumbnail in Supabase Storage).
+  RemoteAdapter.prototype.getSettings = function () { return this._fn('photos-settings'); };
+  RemoteAdapter.prototype.saveSettings = function (patch) { return this._fn('photos-settings', { method: 'PUT', body: patch }); };
+  RemoteAdapter.prototype.listAll = function () { return this._fn('photos-list?scope=all'); };
+  RemoteAdapter.prototype.listPublic = function () { return this._fn('photos-list?scope=public'); };
+  RemoteAdapter.prototype.listPublicPage = function (cursor, limit, category) {
+    var q = 'photos-list?scope=public&limit=' + (limit || 60) +
+      (cursor != null ? '&cursor=' + encodeURIComponent(cursor) : '') +
+      (category && category !== 'All' ? '&category=' + encodeURIComponent(category) : '');
+    return this._fn(q);
+  };
+  RemoteAdapter.prototype.create = function (photo) { return this._fn('photos-write', { method: 'POST', body: { op: 'create', photo: photo } }); };
+  RemoteAdapter.prototype.update = function (id, patch) { return this._fn('photos-write', { method: 'POST', body: { op: 'update', id: id, patch: patch } }); };
+  RemoteAdapter.prototype.remove = function (id) { return this._fn('photos-write', { method: 'POST', body: { op: 'delete', id: id } }); };
+  RemoteAdapter.prototype.saveLayout = function (items) { return this._fn('photos-write', { method: 'POST', body: { op: 'layout', items: items } }); };
+  // Best-effort: removes a PREVIOUS image's Cloudinary asset (used after a
+  // successful "replace photo"). Failure here never blocks/reverts the
+  // replace itself — the metadata row already points at the new asset.
+  RemoteAdapter.prototype.cleanupAssets = function (publicId) {
+    if (!publicId) return Promise.resolve();
+    return this._fn('cloudinary-delete', { method: 'DELETE', body: { publicId: publicId } })
+      .catch(function (e) { console.warn('[photography] asset cleanup failed (non-blocking):', e.message); });
+  };
+
+  /* =======================================================
+     CLOUDINARY ADAPTER — images in Cloudinary, metadata in Supabase
+     ---------------------------------------------------------
+     Two-phase upload so the original never routes through a
+     Netlify Function body:
+       1. cloudinary-signature → admin-gated signed upload params
+          (timestamp, signature, apiKey, cloudName, folder, publicId)
+       2. browser POSTs the file DIRECTLY to Cloudinary as multipart
+          FormData (XHR, so we get real byte-level progress + the
+          ability to cancel mid-upload) — Cloudinary itself validates
+          the real file bytes against the signed `allowed_formats`,
+          so a spoofed Content-Type can't sneak in a disallowed format
+       Cloudinary's own JSON response already has everything needed
+       (secure_url, public_id, width, height, format, bytes, colors) —
+       no second server round-trip / processing step is needed, unlike
+       the R2 path this replaces.
+     ======================================================= */
+  function CloudinaryAdapter() { RemoteAdapter.call(this); }
+  CloudinaryAdapter.prototype = Object.create(RemoteAdapter.prototype);
+  CloudinaryAdapter.prototype.constructor = CloudinaryAdapter;
+
+  // XHR + FormData POST directly to Cloudinary. Deliberately NOT reusing
+  // this project's other XHR helper (used for a raw PUT elsewhere): a
+  // multipart POST must NOT have Content-Type set manually (the browser
+  // needs to add its own boundary), must NOT carry this app's own
+  // Authorization header (wrong origin entirely), and the response body
+  // is JSON that must be parsed (not just a status-code check).
+  function uploadFormData(url, formData, opts) {
     return new Promise(function (resolve, reject) {
-      var fr = new FileReader();
-      fr.onload = function () {
-        self._fn('photos-upload', {
-          method: 'POST',
-          body: { filename: file.name, contentType: file.type, dataBase64: String(fr.result).split(',')[1] }
-        }).then(resolve, reject);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.upload.onprogress = function (e) {
+        if (opts.onProgress && e.lengthComputable) opts.onProgress(e.loaded / e.total);
       };
-      fr.onerror = function () { reject(new Error('Could not read file')); };
-      fr.readAsDataURL(file);
+      xhr.onload = function () {
+        var json;
+        try { json = JSON.parse(xhr.responseText); } catch (e) { json = null; }
+        if (xhr.status >= 200 && xhr.status < 300 && json) {
+          resolve(json);
+        } else {
+          var msg = (json && json.error && json.error.message) || ('Upload failed (HTTP ' + xhr.status + ').');
+          reject(new Error(msg));
+        }
+      };
+      xhr.onerror = function () { reject(new Error('Network error while uploading — check your connection and try again.')); };
+      xhr.onabort = function () { reject(new DOMException('Upload cancelled', 'AbortError')); };
+      if (opts.signal) {
+        if (opts.signal.aborted) { xhr.abort(); return; }
+        opts.signal.addEventListener('abort', function () { xhr.abort(); });
+      }
+      xhr.send(formData);
+    });
+  }
+
+  CloudinaryAdapter.prototype.uploadImage = function (file, opts) {
+    var self = this;
+    opts = opts || {};
+    var onProgress = opts.onProgress || function () {};
+
+    if (!ALLOWED_UPLOAD_TYPES[file.type]) {
+      return Promise.reject(new Error('"' + file.name + '" is a ' + (file.type || 'unrecognized') + ' file — only JPEG, PNG, WebP, and AVIF photos are accepted.'));
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return Promise.reject(new Error('"' + file.name + '" is too large (max ' + Math.round(MAX_UPLOAD_BYTES / 1024 / 1024) + 'MB).'));
+    }
+
+    // Phase progress budget: 5% mint signature, 5-100% direct upload to
+    // Cloudinary (the actual large transfer + Cloudinary's own processing
+    // time before it responds).
+    onProgress(0.02);
+    return self._fn('cloudinary-signature', {
+      method: 'POST',
+      body: { filename: file.name, contentType: file.type, fileSize: file.size },
+      signal: opts.signal
+    }).then(function (grant) {
+      onProgress(0.05);
+      var formData = new FormData();
+      formData.append('file', file);
+      formData.append('api_key', grant.apiKey);
+      formData.append('timestamp', grant.timestamp);
+      formData.append('signature', grant.signature);
+      formData.append('public_id', grant.publicId);
+      formData.append('folder', grant.folder);
+      formData.append('overwrite', grant.overwrite);
+      formData.append('colors', grant.colors);
+      formData.append('allowed_formats', grant.allowed_formats);
+      var uploadUrl = 'https://api.cloudinary.com/v1_1/' + grant.cloudName + '/image/upload';
+      return uploadFormData(uploadUrl, formData, {
+        signal: opts.signal,
+        onProgress: function (frac) { onProgress(0.05 + frac * 0.95); }
+      });
+    }).then(function (res) {
+      onProgress(1);
+      var dominantColor = (res.colors && res.colors[0] && res.colors[0][0]) || null;
+      return {
+        imageUrl: window.CloudinaryHelpers.getCloudinaryUrl(res.public_id, { width: 1024 }),
+        thumbnailUrl: window.CloudinaryHelpers.getCloudinaryUrl(res.public_id, { width: 320 }),
+        highResolutionUrl: window.CloudinaryHelpers.getCloudinaryUrl(res.public_id, { width: 1600 }),
+        originalImageUrl: res.secure_url,
+        originalWidth: res.width,
+        originalHeight: res.height,
+        aspectRatio: res.width / res.height,
+        cloudinaryPublicId: res.public_id,
+        cloudinaryVersion: res.version,
+        secureUrl: res.secure_url,
+        format: res.format,
+        bytes: res.bytes,
+        dominantColor: dominantColor
+      };
     });
   };
 
-  window.PhotographyData = (CFG.backend === 'supabase') ? new SupabaseAdapter() : new LocalAdapter();
+  window.PhotographyData =
+    CFG.backend === 'cloudinary' ? new CloudinaryAdapter() :
+    new LocalAdapter();
   window.PhotographyData.backend = CFG.backend;
 })();

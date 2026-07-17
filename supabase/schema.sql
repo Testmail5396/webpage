@@ -81,3 +81,41 @@ create trigger photographs_touch before update on public.photographs
 drop trigger if exists settings_touch on public.photography_settings;
 create trigger settings_touch before update on public.photography_settings
   for each row execute function public.touch_updated_at();
+
+-- =========================================================
+-- Focal-point zoom + aspect ratio/dominant-color (additive, safe to
+-- re-run). image_url / display_image_url / original_image_url /
+-- thumbnail_url / high_resolution_url / original_width / original_height
+-- are UNCHANGED columns — no frontend field-name changes needed.
+-- =========================================================
+alter table public.photographs
+  add column if not exists focal_zoom     real not null default 1,   -- pre-existing crop/zoom feature, was missing from this table
+  add column if not exists dominant_color text,                      -- '#rrggbb', from Cloudinary's upload response
+  add column if not exists aspect_ratio   real;                      -- width/height, for layout-stable rendering
+
+-- =========================================================
+-- Cloudinary migration (additive + cleanup, safe to re-run).
+-- Replaces the never-activated Cloudflare R2 columns below — this app's
+-- `backend` config never left 'local' mode, so no row was ever populated
+-- via the R2 path; dropping them is a clean removal, not a data migration.
+-- (If you're unsure whether any row might have R2 data, run
+--  `select count(*) from public.photographs where object_key is not null;`
+--  first — it should be 0 before running the drops below.)
+-- =========================================================
+drop index if exists photographs_object_key_idx;
+alter table public.photographs
+  drop column if exists object_key,
+  drop column if exists variants,
+  drop column if exists placeholder;
+
+alter table public.photographs
+  add column if not exists cloudinary_public_id text,                 -- Cloudinary public_id of the uploaded asset
+  add column if not exists cloudinary_version   int,                  -- Cloudinary asset version (kept for completeness; not used for cache-busting since public_ids are never reused/overwritten)
+  add column if not exists secure_url           text,                 -- Cloudinary's https delivery URL for the original upload
+  add column if not exists format               text,                 -- 'jpg' | 'png' | 'webp' | 'avif'
+  add column if not exists bytes                bigint,               -- original file size, from Cloudinary's response
+  add column if not exists book                 text,                 -- optional grouping field, e.g. for a "Story Worlds" category
+  add column if not exists featured             boolean not null default false;
+
+create unique index if not exists photographs_cloudinary_public_id_idx
+  on public.photographs (cloudinary_public_id) where cloudinary_public_id is not null;

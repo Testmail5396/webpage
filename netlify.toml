@@ -21,6 +21,13 @@
   # OR if you must have a command (less common for truly static sites):
   # command = "echo 'Building static site...'"
 
+[build.environment]
+  # Pinned because @supabase/supabase-js now warns it requires Node 22+
+  # (confirmed by actually installing netlify/functions/package.json
+  # locally — "Node.js 20 and below are deprecated"). Unrelated to the
+  # old `sharp`-native-module reasoning this block used to exist for.
+  NODE_VERSION = "22"
+
 # [[redirects]] section defines URL redirect rules for your site.
 # This is crucial for Single Page Applications (SPAs) that use client-side routing.
 # It tells Netlify to serve 'index.html' for any path that doesn't directly

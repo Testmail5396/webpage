@@ -75,7 +75,20 @@ function toClient(r) {
     originalWidth: r.original_width, originalHeight: r.original_height,
     gridX: r.grid_x, gridY: r.grid_y, gridWidth: r.grid_width, gridHeight: r.grid_height,
     focalPointX: r.focal_point_x, focalPointY: r.focal_point_y,
+    focalZoom: r.focal_zoom == null ? 1 : r.focal_zoom,
     sortOrder: r.sort_order, isPublished: r.is_published,
+    // Cloudinary fields — absent/null for any pre-existing/local-only
+    // row, so the frontend's fallback-to-imageUrl paths (bento-grid.js,
+    // lightbox.js) keep working unchanged for those.
+    cloudinaryPublicId: r.cloudinary_public_id || null,
+    cloudinaryVersion: r.cloudinary_version || null,
+    secureUrl: r.secure_url || null,
+    format: r.format || null,
+    bytes: r.bytes || null,
+    dominantColor: r.dominant_color || null,
+    aspectRatio: r.aspect_ratio || null,
+    book: r.book || '',
+    featured: !!r.featured,
     createdAt: r.created_at, updatedAt: r.updated_at
   };
 }
@@ -88,8 +101,12 @@ function toRow(p) {
     title: p.title, caption: p.caption, alt_text: p.altText, category: p.category,
     original_width: p.originalWidth, original_height: p.originalHeight,
     grid_x: p.gridX, grid_y: p.gridY, grid_width: p.gridWidth, grid_height: p.gridHeight,
-    focal_point_x: p.focalPointX, focal_point_y: p.focalPointY,
-    sort_order: p.sortOrder, is_published: p.isPublished
+    focal_point_x: p.focalPointX, focal_point_y: p.focalPointY, focal_zoom: p.focalZoom,
+    sort_order: p.sortOrder, is_published: p.isPublished,
+    cloudinary_public_id: p.cloudinaryPublicId, cloudinary_version: p.cloudinaryVersion,
+    secure_url: p.secureUrl, format: p.format, bytes: p.bytes,
+    dominant_color: p.dominantColor, aspect_ratio: p.aspectRatio,
+    book: p.book, featured: p.featured
   };
   Object.keys(m).forEach((k) => m[k] === undefined && delete m[k]);
   return m;

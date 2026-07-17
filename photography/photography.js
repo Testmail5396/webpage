@@ -38,9 +38,12 @@
     photos: [],
     settings: null,
     activeCategory: 'All',
+    activeBook: null,
+    featuredOnly: false,
     saveState: 'idle',
     saveTimer: null,
     uploadBatchIds: [], // photos created in the current Upload dialog session (for bulk update)
+    activeUploadCount: 0,
     els: {}
   };
 
@@ -57,30 +60,65 @@
       '    <p class="pg-page-desc"></p>' +
       '  </div>' +
       '  <div class="pg-filters" role="tablist" aria-label="Filter by category"></div>' +
+      '  <div class="pg-book-filters" role="tablist" aria-label="Filter by book"></div>' +
       '</div>' +
-      '<div class="pg-grid-wrap"><div class="pg-grid-mount"></div></div>' +
+      '<div class="pg-grid-wrap"><div class="pg-grid-mount"></div><div class="pg-load-more-sentinel" aria-hidden="true"></div></div>' +
       '<div class="pg-empty" hidden>No published photographs yet.</div>' +
       '<footer class="pg-footer" hidden><span class="pg-copyright"></span><span class="pg-social"></span></footer>';
 
     P.els.title = container.querySelector('.pg-page-title');
     P.els.desc = container.querySelector('.pg-page-desc');
     P.els.filters = container.querySelector('.pg-filters');
+    P.els.bookFilters = container.querySelector('.pg-book-filters');
     P.els.gridMount = container.querySelector('.pg-grid-mount');
     P.els.empty = container.querySelector('.pg-empty');
     P.els.footer = container.querySelector('.pg-footer');
     P.els.copyright = container.querySelector('.pg-copyright');
     P.els.social = container.querySelector('.pg-social');
+    P.els.sentinel = container.querySelector('.pg-load-more-sentinel');
 
     P.lightbox = window.createLightbox();
     buildToolbar();
     buildEditDialog();
     buildUploadDialog();
     buildSettingsDialog();
+    buildMigrationDialog();
 
     AUTH.onChange(function () { refreshMode(); });
+    wireLoadMoreObserver();
 
     load();
   };
+
+  /* ---------------- progressive loading: "load more" on scroll ----------------
+     Public (non-admin) view only — the admin view always loads the full
+     catalog via listAll() since reordering/editing needs the complete set.
+     A sentinel below the grid triggers the next page as it nears the
+     viewport; pages only ever APPEND to the tail, which is safe for the
+     deterministic first-fit packer (see bento-grid.js packedLayout()). */
+  var PUBLIC_PAGE_SIZE = 60;
+
+  function wireLoadMoreObserver() {
+    if (!('IntersectionObserver' in window) || !P.els.sentinel) return;
+    var io = new IntersectionObserver(function (entries) {
+      if (entries.some(function (e) { return e.isIntersecting; })) loadMorePublic();
+    }, { rootMargin: '600px 0px' });
+    io.observe(P.els.sentinel);
+  }
+
+  function loadMorePublic() {
+    if (AUTH.isAdmin() || !P.hasMorePublic || P.loadingMore) return;
+    P.loadingMore = true;
+    DATA.listPublicPage(P.nextCursor, PUBLIC_PAGE_SIZE).then(function (page) {
+      P.loadingMore = false;
+      var items = (page && page.items) || [];
+      if (!items.length) { P.hasMorePublic = false; return; }
+      P.photos = P.photos.concat(items);
+      P.nextCursor = page ? page.nextCursor : null;
+      P.hasMorePublic = !!(page && page.hasMore);
+      renderGrid();
+    }).catch(function (e) { P.loadingMore = false; console.error('[photography] load more failed', e); });
+  }
 
   function load() {
     DATA.getSettings().then(function (s) {
@@ -110,21 +148,37 @@
 
   function reloadPhotos() {
     var admin = AUTH.isAdmin();
-    var promise = admin ? DATA.listAll() : DATA.listPublic();
-    return promise.then(function (photos) {
-      P.photos = photos || [];
-      renderFilters();
-      renderGrid();
-      refreshMode();
+    P.nextCursor = null; P.hasMorePublic = false; P.loadingMore = false;
+    if (admin) {
+      return DATA.listAll().then(function (photos) {
+        P.photos = photos || [];
+        renderFilters(); renderGrid(); refreshMode();
+      }).catch(function (e) { console.error('[photography] load failed', e); });
+    }
+    // Public view: fetch only the first page up front — additional pages
+    // load as the visitor scrolls near the bottom (see loadMorePublic()).
+    return DATA.listPublicPage(null, PUBLIC_PAGE_SIZE).then(function (page) {
+      P.photos = (page && page.items) || [];
+      P.nextCursor = page ? page.nextCursor : null;
+      P.hasMorePublic = !!(page && page.hasMore);
+      renderFilters(); renderGrid(); refreshMode();
     }).catch(function (e) { console.error('[photography] load failed', e); });
   }
 
   /* ---------------- grid ---------------- */
   function visiblePhotos() {
-    var admin = AUTH.isAdmin();
     var list = P.photos.slice();
+    // Featured is a cross-category curated view (like a pseudo-category),
+    // not combined with the regular category filter — avoids a confusing
+    // "category AND featured" empty-intersection dead end.
+    if (P.featuredOnly) {
+      return list.filter(function (p) { return !!p.featured; });
+    }
     if (P.activeCategory !== 'All') {
       list = list.filter(function (p) { return (p.category || 'Uncategorized') === P.activeCategory; });
+      if (P.activeBook) {
+        list = list.filter(function (p) { return (p.book || '').trim() === P.activeBook; });
+      }
     }
     return list;
   }
@@ -155,15 +209,63 @@
   function renderFilters() {
     var cats = {};
     P.photos.forEach(function (p) { if (p.category) cats[p.category] = true; });
-    var list = ['All'].concat(Object.keys(cats).sort());
-    if (list.length <= 1) { P.els.filters.innerHTML = ''; return; }
-    P.els.filters.innerHTML = list.map(function (c) {
-      return '<button class="pg-filter' + (c === P.activeCategory ? ' active' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
+    var catList = ['All'].concat(Object.keys(cats).sort());
+    var anyFeatured = P.photos.some(function (p) { return !!p.featured; });
+
+    if (catList.length <= 1 && !anyFeatured) {
+      P.els.filters.innerHTML = ''; P.els.bookFilters.innerHTML = '';
+      return;
+    }
+
+    var html = catList.map(function (c) {
+      return '<button class="pg-filter' + (!P.featuredOnly && c === P.activeCategory ? ' active' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
     }).join('');
+    // Cross-category curated view — only shown at all when at least one
+    // photo is actually marked featured, so it's never a dead-end click.
+    if (anyFeatured) {
+      html += '<button class="pg-filter pg-filter-featured' + (P.featuredOnly ? ' active' : '') + '" data-featured="1">★ Featured</button>';
+    }
+    P.els.filters.innerHTML = html;
+
     Array.prototype.forEach.call(P.els.filters.querySelectorAll('.pg-filter'), function (b) {
       b.addEventListener('click', function () {
-        P.activeCategory = b.getAttribute('data-cat');
+        if (b.hasAttribute('data-featured')) {
+          P.featuredOnly = !P.featuredOnly;
+          if (P.featuredOnly) P.activeCategory = 'All';
+        } else {
+          P.featuredOnly = false;
+          P.activeCategory = b.getAttribute('data-cat');
+        }
+        P.activeBook = null; // switching category/featured invalidates any book sub-filter
         renderFilters(); renderGrid();
+      });
+    });
+
+    renderBookFilters();
+  }
+
+  // Secondary filter row: distinct `book` values within the ACTIVE
+  // category only, so switching categories never leaves a stale/invalid
+  // book selected. Only appears when that category actually has any.
+  function renderBookFilters() {
+    var bookEl = P.els.bookFilters;
+    if (P.featuredOnly || P.activeCategory === 'All') { bookEl.innerHTML = ''; return; }
+    var books = {};
+    P.photos.forEach(function (p) {
+      var b = (p.book || '').trim();
+      if (b && (p.category || 'Uncategorized') === P.activeCategory) books[b] = true;
+    });
+    var bookList = Object.keys(books).sort();
+    if (!bookList.length) { bookEl.innerHTML = ''; return; }
+    bookEl.innerHTML = ['All'].concat(bookList).map(function (b) {
+      var isAll = b === 'All';
+      var active = isAll ? !P.activeBook : P.activeBook === b;
+      return '<button class="pg-filter pg-filter-sub' + (active ? ' active' : '') + '" data-book="' + esc(isAll ? '' : b) + '">' + esc(b) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(bookEl.querySelectorAll('.pg-filter'), function (btn) {
+      btn.addEventListener('click', function () {
+        P.activeBook = btn.getAttribute('data-book') || null;
+        renderBookFilters(); renderGrid();
       });
     });
   }
@@ -173,6 +275,7 @@
     var admin = AUTH.isAdmin();
     document.body.classList.toggle('pg-admin', admin);
     if (P.els.toolbar) P.els.toolbar.hidden = !admin;
+    if (admin) refreshMigrateButtonVisibility();
     // If admin state changed relative to what grid shows, reload (public⇄all)
     var gridIsAdmin = P.grid && document.body.classList.contains('pg-admin-grid');
     if (admin !== gridIsAdmin) {
@@ -192,6 +295,7 @@
       '  <button class="pg-tbtn" data-act="add">' + icon('M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 3v12m0-12l-4 4m4-4l4 4') + '<span>Add Photos</span></button>' +
       '  <button class="pg-tbtn" data-act="preview">' + icon('M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z M12 15a3 3 0 100-6 3 3 0 000 6z') + '<span>Preview</span></button>' +
       '  <button class="pg-tbtn" data-act="profile">' + icon('M12 12a4 4 0 100-8 4 4 0 000 8z M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6') + '<span>Profile</span></button>' +
+      '  <button class="pg-tbtn" data-act="migrate" hidden>' + icon('M12 3v12m0 0l-4-4m4 4l4-4 M4 21h16') + '<span>Migrate to Cloud</span></button>' +
       '  <button class="pg-tbtn pg-tbtn-primary" data-act="save">' + icon('M5 13l4 4L19 7') + '<span>Save</span></button>' +
       '  <button class="pg-tbtn" data-act="logout">' + icon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9') + '<span>Logout</span></button>' +
       '</div>';
@@ -204,11 +308,35 @@
       var act = btn.getAttribute('data-act');
       if (act === 'add') openUploadDialog(true);
       else if (act === 'profile') openSettingsDialog();
+      else if (act === 'migrate') openMigrationDialog();
       else if (act === 'preview') togglePreview(btn);
       else if (act === 'save') saveAll();
       else if (act === 'logout') AUTH.signOut();
     });
     setSaveState('idle');
+  }
+
+  /* ---------------- one-time local → cloud migration ----------------
+     Only relevant once the backend has been switched away from 'local'
+     (see config.js). Detects photos still holding base64 data URLs from
+     an earlier local session, lets the admin pick which to upload to
+     the active cloud backend, and removes ONLY the migrated entries'
+     base64 data from localStorage afterward — never a silent fallback,
+     never touching photos the admin didn't select. */
+  function detectLegacyLocalPhotos() {
+    try {
+      var raw = localStorage.getItem(CFG.storageKeys.photos);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(function (p) { return p && typeof p.imageUrl === 'string' && p.imageUrl.indexOf('data:') === 0; });
+    } catch (e) { return []; }
+  }
+
+  function refreshMigrateButtonVisibility() {
+    var btn = P.els.toolbar && P.els.toolbar.querySelector('[data-act="migrate"]');
+    if (!btn) return;
+    btn.hidden = !(CFG.backend !== 'local' && detectLegacyLocalPhotos().length > 0);
   }
 
   var previewing = false;
@@ -342,6 +470,8 @@
   function openUploadDialog() {
     P.els.uploadList.innerHTML = '';
     P.uploadBatchIds = []; // fresh batch each time the dialog opens
+    P.activeUploadCount = 0;
+    setUploadsActive(false);
     var bulkBox = P.els.uploadDialog.querySelector('.pg-bulk-actions');
     bulkBox.hidden = true;
     P.els.uploadDialog.querySelector('.pg-bulk-msg').textContent = '';
@@ -349,32 +479,65 @@
     showDialog(P.els.uploadDialog);
   }
 
+  // Disabled while any upload is in flight so a second batch can't be
+  // queued onto the same dialog session mid-upload (spec: "disable
+  // repeated submission during an active upload").
+  function setUploadsActive(active) {
+    var d = P.els.uploadDialog;
+    d.querySelector('.pg-dropzone').classList.toggle('pg-dropzone-busy', active);
+    d.querySelector('.pg-choose').disabled = active;
+    d.querySelector('.pg-file-input').disabled = active;
+  }
+
   function handleFiles(files) {
     var arr = Array.prototype.slice.call(files);
     if (!arr.length) return;
     setSaveState('uploading');
-    var done = 0;
+    var done = 0, anyError = false;
+    function checkDone() {
+      if (done !== arr.length) return;
+      setSaveState(anyError ? 'error' : (P.uploadBatchIds.length ? 'saved' : 'idle'));
+    }
     arr.forEach(function (file) {
       var li = document.createElement('li');
       li.className = 'pg-upload-item';
-      li.innerHTML = '<span class="pg-up-name">' + esc(file.name) + '</span><span class="pg-up-status">Uploading…</span><span class="pg-up-bar"><i></i></span>';
+      li.innerHTML = '<span class="pg-up-name">' + esc(file.name) + '</span>' +
+        '<span class="pg-up-status">Uploading…</span>' +
+        '<button type="button" class="pg-up-cancel" aria-label="Cancel upload for ' + esc(file.name) + '">&times;</button>' +
+        '<span class="pg-up-bar"><i></i></span>';
       P.els.uploadList.appendChild(li);
       var bar = li.querySelector('.pg-up-bar i');
-      bar.style.width = '35%';
+      var cancelBtn = li.querySelector('.pg-up-cancel');
 
       // Files the browser doesn't even report as an image (wrong file type
       // picked, or a non-image dropped alongside photos) — say so plainly
       // instead of silently dropping them from the list.
       if (!/^image\//.test(file.type)) {
+        cancelBtn.remove();
         li.querySelector('.pg-up-status').textContent = 'Skipped — not an image file';
         li.classList.add('pg-up-fail');
-        done++;
-        if (done === arr.length) setSaveState(P.uploadBatchIds.length ? 'saved' : 'idle');
+        done++; checkDone();
         return;
       }
 
-      DATA.uploadImage(file).then(function (up) {
-        bar.style.width = '75%';
+      P.activeUploadCount = (P.activeUploadCount || 0) + 1;
+      setUploadsActive(true);
+      var settled = false;
+      var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      cancelBtn.addEventListener('click', function () { if (!settled && controller) controller.abort(); });
+      if (!controller) cancelBtn.remove(); // no cancellation support (very old browser) — hide the control
+
+      function settle() {
+        settled = true;
+        P.activeUploadCount = Math.max(0, (P.activeUploadCount || 1) - 1);
+        if (P.activeUploadCount === 0) setUploadsActive(false);
+        cancelBtn.remove();
+      }
+
+      DATA.uploadImage(file, {
+        signal: controller && controller.signal,
+        onProgress: function (frac) { bar.style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%'; }
+      }).then(function (up) {
         var size = pickGridForImage(up.originalWidth, up.originalHeight);
         return DATA.create({
           imageUrl: up.imageUrl,
@@ -383,12 +546,20 @@
           originalImageUrl: up.originalImageUrl,
           originalWidth: up.originalWidth,
           originalHeight: up.originalHeight,
+          cloudinaryPublicId: up.cloudinaryPublicId || null,
+          cloudinaryVersion: up.cloudinaryVersion || null,
+          secureUrl: up.secureUrl || null,
+          format: up.format || null,
+          bytes: up.bytes || null,
+          dominantColor: up.dominantColor || null,
+          aspectRatio: up.aspectRatio || null,
           altText: file.name.replace(/\.[^.]+$/, ''),
           fileName: file.name,
           gridWidth: size.gridWidth, gridHeight: size.gridHeight,
-          isPublished: false
+          isPublished: false, featured: false, book: ''
         });
       }).then(function (rec) {
+        settle();
         bar.style.width = '100%';
         li.querySelector('.pg-up-status').textContent = 'Added (draft)';
         li.classList.add('pg-up-ok');
@@ -397,17 +568,22 @@
         if (P.__refreshBulkVisibility) P.__refreshBulkVisibility();
         done++;
         renderFilters(); renderGrid();
-        if (done === arr.length) setSaveState('saved');
+        checkDone();
       }).catch(function (e) {
-        console.error(e);
-        li.querySelector('.pg-up-status').textContent = 'Failed';
-        li.classList.add('pg-up-fail');
-        var reason = document.createElement('span');
-        reason.className = 'pg-up-reason';
-        reason.textContent = e.message || 'Upload failed — unknown error.';
-        li.appendChild(reason);
+        settle();
+        var cancelled = e && e.name === 'AbortError';
+        li.querySelector('.pg-up-status').textContent = cancelled ? 'Cancelled' : 'Failed';
+        li.classList.add(cancelled ? 'pg-up-cancelled' : 'pg-up-fail');
+        if (!cancelled) {
+          console.error(e);
+          anyError = true;
+          var reason = document.createElement('span');
+          reason.className = 'pg-up-reason';
+          reason.textContent = e.message || 'Upload failed — unknown error.';
+          li.appendChild(reason);
+        }
         done++;
-        if (done === arr.length) setSaveState('error');
+        checkDone();
       });
     });
   }
@@ -428,8 +604,10 @@
       '    <label class="pg-field"><span>Title</span><input type="text" class="pg-f-title" maxlength="120"></label>' +
       '    <label class="pg-field"><span>Caption</span><textarea class="pg-f-caption" rows="2" maxlength="280"></textarea></label>' +
       '    <label class="pg-field"><span>Category</span><input type="text" class="pg-f-category" list="pg-cat-list" maxlength="60"><datalist id="pg-cat-list"></datalist></label>' +
+      '    <label class="pg-field"><span>Book <em>(optional — e.g. for a Story Worlds category)</em></span><input type="text" class="pg-f-book" list="pg-book-list" maxlength="80"><datalist id="pg-book-list"></datalist></label>' +
       '    <label class="pg-field"><span>Alt text <em>(for accessibility)</em></span><textarea class="pg-f-alt" rows="2" maxlength="280"></textarea></label>' +
       '    <label class="pg-field pg-field-inline"><input type="checkbox" class="pg-f-publish"><span>Published (visible to everyone)</span></label>' +
+      '    <label class="pg-field pg-field-inline"><input type="checkbox" class="pg-f-featured"><span>★ Featured</span></label>' +
       '    <div class="pg-size-row"><span>Size preset</span><div class="pg-size-btns"></div></div>' +
       '  </div>' +
       '</div>' +
@@ -449,6 +627,10 @@
   var editing = null;
   function openEditDialog(photo) {
     editing = photo;
+    // Clear any stale "pending replace" marker from a previous session that
+    // was cancelled without saving (so a genuinely new replace-then-save
+    // this time around can't clean up the wrong/already-gone old asset).
+    delete editing.__pendingOldPublicId;
     if (editing.focalZoom == null) editing.focalZoom = 1;
     var d = P.els.editDialog;
     d.querySelector('.pg-focal-img').src = photo.imageUrl;
@@ -457,14 +639,19 @@
     d.querySelector('.pg-f-title').value = photo.title || '';
     d.querySelector('.pg-f-caption').value = photo.caption || '';
     d.querySelector('.pg-f-category').value = photo.category || '';
+    d.querySelector('.pg-f-book').value = photo.book || '';
     d.querySelector('.pg-f-alt').value = photo.altText || '';
     d.querySelector('.pg-f-publish').checked = !!photo.isPublished;
+    d.querySelector('.pg-f-featured').checked = !!photo.featured;
     d.querySelector('.pg-f-zoom').value = editing.focalZoom;
     d.querySelector('.pg-zoom-val').textContent = Math.round(editing.focalZoom * 100) + '%';
     // category suggestions (settings categories + those already in use)
     var cats = {}; (P.settings && P.settings.categories || []).forEach(function (c) { cats[c] = true; });
     P.photos.forEach(function (p) { if (p.category) cats[p.category] = true; });
     d.querySelector('#pg-cat-list').innerHTML = Object.keys(cats).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+    // book suggestions (books already in use, across all categories)
+    var books = {}; P.photos.forEach(function (p) { if (p.book) books[p.book.trim()] = true; });
+    d.querySelector('#pg-book-list').innerHTML = Object.keys(books).map(function (b) { return '<option value="' + esc(b) + '">'; }).join('');
     syncPresetActive();
     syncFocalAspect();
     positionFocalDot();
@@ -535,10 +722,23 @@
       var f = replaceInput.files[0]; replaceInput.value = '';
       if (!f) return;
       setSaveState('uploading');
+      // Capture the CURRENT (about-to-be-replaced) public id before it's
+      // overwritten below — held on `editing` until the metadata save
+      // succeeds, at which point it's safe to delete the old Cloudinary
+      // asset (see the pg-save-photo handler). Not cleared here: if the
+      // admin replaces the photo again before saving, only the oldest id matters.
+      if (editing.__pendingOldPublicId === undefined) editing.__pendingOldPublicId = editing.cloudinaryPublicId || null;
       DATA.uploadImage(f).then(function (up) {
         editing.imageUrl = up.imageUrl; editing.thumbnailUrl = up.thumbnailUrl;
         editing.highResolutionUrl = up.highResolutionUrl; editing.originalImageUrl = up.originalImageUrl;
         editing.originalWidth = up.originalWidth; editing.originalHeight = up.originalHeight;
+        editing.cloudinaryPublicId = up.cloudinaryPublicId || null;
+        editing.cloudinaryVersion = up.cloudinaryVersion || null;
+        editing.secureUrl = up.secureUrl || null;
+        editing.format = up.format || null;
+        editing.bytes = up.bytes || null;
+        editing.dominantColor = up.dominantColor || null;
+        editing.aspectRatio = up.aspectRatio || null;
         // A replaced photo likely has a different subject/composition —
         // reset the crop back to center/no-zoom rather than keep the old one.
         editing.focalPointX = 0.5; editing.focalPointY = 0.5; editing.focalZoom = 1;
@@ -555,24 +755,37 @@
     });
     d.querySelector('.pg-save-photo').addEventListener('click', function () {
       if (!editing) return;
+      var oldPublicId = editing.__pendingOldPublicId; // set only if "Replace photo" was used this session
       var patch = {
         title: d.querySelector('.pg-f-title').value.trim(),
         caption: d.querySelector('.pg-f-caption').value.trim(),
         category: d.querySelector('.pg-f-category').value.trim(),
+        book: d.querySelector('.pg-f-book').value.trim(),
         altText: d.querySelector('.pg-f-alt').value.trim(),
         isPublished: d.querySelector('.pg-f-publish').checked,
+        featured: d.querySelector('.pg-f-featured').checked,
         fileName: editing.fileName,
         focalPointX: editing.focalPointX, focalPointY: editing.focalPointY,
         focalZoom: editing.focalZoom || 1,
         gridWidth: editing.gridWidth, gridHeight: editing.gridHeight,
         imageUrl: editing.imageUrl, thumbnailUrl: editing.thumbnailUrl,
         highResolutionUrl: editing.highResolutionUrl, originalImageUrl: editing.originalImageUrl,
-        originalWidth: editing.originalWidth, originalHeight: editing.originalHeight
+        originalWidth: editing.originalWidth, originalHeight: editing.originalHeight,
+        cloudinaryPublicId: editing.cloudinaryPublicId || null, cloudinaryVersion: editing.cloudinaryVersion || null,
+        secureUrl: editing.secureUrl || null, format: editing.format || null, bytes: editing.bytes || null,
+        dominantColor: editing.dominantColor || null, aspectRatio: editing.aspectRatio || null
       };
       setSaveState('saving');
       DATA.update(editing.id, patch).then(function (rec) {
         Object.assign(editing, rec);
+        delete editing.__pendingOldPublicId;
         hideDialog(d); renderFilters(); renderGrid(); setSaveState('saved');
+        // Best-effort cleanup of the REPLACED image's old asset — only
+        // after the metadata row already points at the new one, and only
+        // if the public id actually changed (not every save is a replace).
+        if (oldPublicId && oldPublicId !== rec.cloudinaryPublicId && DATA.cleanupAssets) {
+          DATA.cleanupAssets(oldPublicId);
+        }
       }).catch(function (e) { console.error(e); setSaveState('error'); });
     });
   }
@@ -676,6 +889,153 @@
     var list = d.querySelector('.pg-social-list'); list.innerHTML = '';
     (s.socialLinks || []).forEach(function (l) { addSocialRow(l.label, l.url); });
     showDialog(d);
+  }
+
+  /* ---------------- migration dialog (local → cloud, one-time) ---------------- */
+  function buildMigrationDialog() {
+    var d = makeDialog('pg-migrate-dialog',
+      '<h2 class="pg-dialog-title">Migrate photos to cloud storage</h2>' +
+      '<p class="pg-hint pg-migrate-intro"></p>' +
+      '<div class="pg-migrate-toolbar">' +
+      '  <button type="button" class="pg-btn pg-btn-ghost pg-migrate-backup">Download JSON backup</button>' +
+      '  <button type="button" class="pg-link pg-migrate-selectall">Select all / none</button>' +
+      '</div>' +
+      '<ul class="pg-migrate-list"></ul>' +
+      '<p class="pg-migrate-msg" role="status"></p>' +
+      '<div class="pg-dialog-actions">' +
+      '  <span class="pg-spacer"></span>' +
+      '  <button class="pg-btn pg-btn-ghost" data-close>Close</button>' +
+      '  <button class="pg-btn pg-btn-primary pg-migrate-start">Migrate selected</button>' +
+      '</div>'
+    );
+    P.els.migrateDialog = d.root;
+    d.root.querySelector('.pg-migrate-backup').addEventListener('click', downloadLegacyBackup);
+    d.root.querySelector('.pg-migrate-selectall').addEventListener('click', function () {
+      var boxes = d.root.querySelectorAll('.pg-migrate-item input[type="checkbox"]');
+      var allChecked = boxes.length > 0 && Array.prototype.every.call(boxes, function (b) { return b.checked; });
+      Array.prototype.forEach.call(boxes, function (b) { b.checked = !allChecked; });
+    });
+    d.root.querySelector('.pg-migrate-start').addEventListener('click', startMigration);
+  }
+
+  function downloadLegacyBackup() {
+    var legacy = detectLegacyLocalPhotos();
+    var blob = new Blob([JSON.stringify(legacy, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'photography-local-backup.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function openMigrationDialog() {
+    var legacy = detectLegacyLocalPhotos();
+    var d = P.els.migrateDialog;
+    P.__legacyForMigration = legacy;
+    d.querySelector('.pg-migrate-intro').textContent = legacy.length
+      ? ('Found ' + legacy.length + ' photo' + (legacy.length === 1 ? '' : 's') + ' still stored locally in this browser. ' +
+         'Download a backup first if you like, then pick which to upload to cloud storage — only the ones you migrate will be removed from local storage.')
+      : 'No locally-stored photos were found in this browser — nothing to migrate.';
+    var listEl = d.querySelector('.pg-migrate-list');
+    listEl.innerHTML = legacy.map(function (p, i) {
+      var thumb = p.thumbnailUrl || p.imageUrl;
+      return '<li class="pg-migrate-item" data-idx="' + i + '">' +
+        '<img class="pg-migrate-thumb" src="' + thumb + '" alt="">' +
+        '<label class="pg-migrate-label"><input type="checkbox" checked> ' + esc(p.title || p.fileName || 'Untitled photo') + '</label>' +
+        '<span class="pg-migrate-status"></span>' +
+        '</li>';
+    }).join('');
+    d.querySelector('.pg-migrate-start').disabled = legacy.length === 0;
+    d.querySelector('.pg-migrate-msg').textContent = '';
+    showDialog(d);
+  }
+
+  // Re-creates a real File from a stored base64 data URL, uploads it
+  // through the SAME uploadImage()/create() path a fresh upload would use,
+  // and preserves the fields the spec calls out explicitly (title/caption/
+  // category/order/focal point/published state).
+  function migrateOnePhoto(legacyPhoto) {
+    var srcUrl = legacyPhoto.originalImageUrl || legacyPhoto.imageUrl;
+    return fetch(srcUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+      var fileName = legacyPhoto.fileName || ((legacyPhoto.title || 'photo').replace(/\s+/g, '-') + '.webp');
+      var file = new File([blob], fileName, { type: blob.type || 'image/webp' });
+      return DATA.uploadImage(file);
+    }).then(function (up) {
+      return DATA.create({
+        imageUrl: up.imageUrl, thumbnailUrl: up.thumbnailUrl,
+        highResolutionUrl: up.highResolutionUrl, originalImageUrl: up.originalImageUrl,
+        originalWidth: up.originalWidth, originalHeight: up.originalHeight,
+        cloudinaryPublicId: up.cloudinaryPublicId || null, cloudinaryVersion: up.cloudinaryVersion || null,
+        secureUrl: up.secureUrl || null, format: up.format || null, bytes: up.bytes || null,
+        dominantColor: up.dominantColor || null, aspectRatio: up.aspectRatio || null,
+        title: legacyPhoto.title || '', caption: legacyPhoto.caption || '',
+        altText: legacyPhoto.altText || '', category: legacyPhoto.category || '',
+        book: legacyPhoto.book || '',
+        fileName: legacyPhoto.fileName || '',
+        gridWidth: legacyPhoto.gridWidth || 1, gridHeight: legacyPhoto.gridHeight || 1,
+        focalPointX: legacyPhoto.focalPointX != null ? legacyPhoto.focalPointX : 0.5,
+        focalPointY: legacyPhoto.focalPointY != null ? legacyPhoto.focalPointY : 0.5,
+        focalZoom: legacyPhoto.focalZoom || 1,
+        sortOrder: legacyPhoto.sortOrder || 0,
+        isPublished: !!legacyPhoto.isPublished,
+        featured: !!legacyPhoto.featured
+      });
+    });
+  }
+
+  function removeMigratedFromLocalStorage(migratedIds) {
+    if (!migratedIds.length) return;
+    try {
+      var raw = localStorage.getItem(CFG.storageKeys.photos);
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      var idSet = {}; migratedIds.forEach(function (id) { idSet[id] = true; });
+      var kept = arr.filter(function (p) { return !(p && idSet[p.id]); });
+      localStorage.setItem(CFG.storageKeys.photos, JSON.stringify(kept));
+    } catch (e) { console.warn('[photography] could not clean up migrated local data', e); }
+  }
+
+  function startMigration() {
+    var legacy = P.__legacyForMigration || [];
+    var d = P.els.migrateDialog;
+    var items = Array.prototype.slice.call(d.querySelectorAll('.pg-migrate-item'));
+    var selected = items.filter(function (li) { return li.querySelector('input[type="checkbox"]').checked; });
+    if (!selected.length) { d.querySelector('.pg-migrate-msg').textContent = 'Select at least one photo first.'; return; }
+    d.querySelector('.pg-migrate-start').disabled = true;
+    d.querySelector('.pg-migrate-msg').textContent = 'Migrating…';
+
+    var migratedIds = [], failedCount = 0;
+    // Sequential, not parallel — keeps upload bandwidth/server load
+    // predictable and status per-item easy to follow (this is a rare,
+    // one-time admin action, not a latency-sensitive path).
+    var chain = selected.reduce(function (chainPromise, li) {
+      return chainPromise.then(function () {
+        var legacyPhoto = legacy[+li.dataset.idx];
+        var statusEl = li.querySelector('.pg-migrate-status');
+        statusEl.textContent = 'Uploading…';
+        return migrateOnePhoto(legacyPhoto).then(function (rec) {
+          statusEl.textContent = 'Done';
+          li.classList.add('pg-up-ok');
+          migratedIds.push(legacyPhoto.id);
+          P.photos.push(rec);
+        }).catch(function (e) {
+          console.error('[photography] migration failed for', legacyPhoto.id, e);
+          statusEl.textContent = 'Failed';
+          li.classList.add('pg-up-fail');
+          failedCount++;
+        });
+      });
+    }, Promise.resolve());
+
+    chain.then(function () {
+      renderFilters(); renderGrid();
+      removeMigratedFromLocalStorage(migratedIds);
+      d.querySelector('.pg-migrate-start').disabled = false;
+      d.querySelector('.pg-migrate-msg').textContent =
+        migratedIds.length + ' migrated' + (failedCount ? (', ' + failedCount + ' failed (left in place — try again)') : '') + '.';
+      refreshMigrateButtonVisibility();
+    });
   }
 
   /* ---------------- dialog primitives ---------------- */

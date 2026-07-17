@@ -8,9 +8,11 @@
 --   * All WRITES happen through the Netlify serverless functions
 --     using the SERVICE ROLE key, which bypasses RLS. Those
 --     functions verify the caller's email == ADMIN_EMAIL BEFORE
---     touching the database (see netlify/functions/_auth.js).
---   * The storage bucket is public-read, admin-write (write only
---     via the service role in the upload function).
+--     touching the database (see netlify/functions/_lib.js).
+--   * Image binaries live in Cloudinary, not Supabase Storage — there
+--     is no storage bucket for this app; Cloudinary uploads/deletes
+--     are gated by the same ADMIN_EMAIL check, server-side, using a
+--     signed request (see netlify/functions/_cloudinary.js).
 -- =========================================================
 
 alter table public.photographs         enable row level security;
@@ -35,25 +37,3 @@ create policy "public read settings"
   for select
   to anon, authenticated
   using (true);
-
--- =========================================================
--- STORAGE
--- Create a bucket named 'photography' (public) in the dashboard,
--- or with the snippet below. Public read; writes only via the
--- service role in the upload function.
--- =========================================================
-insert into storage.buckets (id, name, public)
-values ('photography', 'photography', true)
-on conflict (id) do nothing;
-
--- Public read of objects in the photography bucket.
-drop policy if exists "photography public read" on storage.objects;
-create policy "photography public read"
-  on storage.objects
-  for select
-  to anon, authenticated
-  using (bucket_id = 'photography');
-
--- Note: no anon/authenticated INSERT/UPDATE/DELETE policies on
--- storage.objects for this bucket → uploads/deletes are only
--- possible with the service role key inside the server functions.

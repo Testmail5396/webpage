@@ -113,8 +113,20 @@
       container.style.gridAutoRows = state.cellSize + 'px';
     }
 
+    /* Approximate rendered-width hints for the `sizes` attribute — the
+       exact pixel width varies with how many grid units a card spans,
+       but `sizes` only needs to be roughly right for the browser to
+       pick a sensibly-close srcset candidate, not pixel-perfect. */
+    var SIZES_HINT = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw';
+    // Cloudinary generates every one of these widths on the fly from a
+    // single stored public_id (see cloudinary-helpers.js) — nothing is
+    // pre-generated/stored per-size, so the full spec-suggested list is
+    // cheap to offer (more responsive granularity than the old 4-variant
+    // R2 scheme, for free).
+    var RESPONSIVE_WIDTHS = [320, 480, 640, 800, 1024, 1280, 1600];
+
     /* ---------- rendering ---------- */
-    function buildCard(photo) {
+    function buildCard(photo, isPriority) {
       var el = document.createElement('div');
       el.className = 'pg-card';
       el.setAttribute('data-id', photo.id);
@@ -124,17 +136,45 @@
 
       var media = document.createElement('div');
       media.className = 'pg-card-media';
+      if (photo.aspectRatio) media.style.aspectRatio = String(photo.aspectRatio);
 
-      var sk = document.createElement('div');
-      sk.className = 'pg-skeleton';
-      media.appendChild(sk);
+      // Instant fill so there's never a blank/white card before the real
+      // image arrives: a tiny blurred Cloudinary placeholder if we have a
+      // cloudinaryPublicId, else a flat dominant-color tint, else the
+      // original shimmering skeleton (local/seed records with neither).
+      if (photo.cloudinaryPublicId) {
+        var ph = document.createElement('img');
+        ph.className = 'pg-placeholder';
+        ph.alt = ''; ph.setAttribute('aria-hidden', 'true');
+        ph.src = window.CloudinaryHelpers.getPlaceholderUrl(photo.cloudinaryPublicId);
+        media.appendChild(ph);
+      } else {
+        var sk = document.createElement('div');
+        sk.className = 'pg-skeleton';
+        if (photo.dominantColor) { sk.style.animation = 'none'; sk.style.background = photo.dominantColor; }
+        media.appendChild(sk);
+      }
 
       var img = document.createElement('img');
       img.className = 'pg-img';
-      img.loading = 'lazy';
+      // The very first card (feature/top of sort order) loads eagerly at
+      // high priority — everything else stays lazy. Never preload the
+      // whole gallery, only this one above-the-fold image.
+      img.loading = isPriority ? 'eager' : 'lazy';
+      if (isPriority) img.setAttribute('fetchpriority', 'high');
       img.decoding = 'async';
       img.alt = photo.altText || '';
-      img.src = photo.imageUrl;
+      if (photo.cloudinaryPublicId) {
+        // Responsive srcset built from Cloudinary width transforms —
+        // mobile never downloads the desktop-sized file, and high-DPI
+        // screens can still pick a larger candidate without ALWAYS
+        // loading the largest size.
+        img.srcset = window.CloudinaryHelpers.getResponsiveSrcSet(photo.cloudinaryPublicId, RESPONSIVE_WIDTHS);
+        img.sizes = SIZES_HINT;
+        img.src = window.CloudinaryHelpers.getCloudinaryUrl(photo.cloudinaryPublicId, { width: 1024 }); // fallback for browsers ignoring srcset
+      } else {
+        img.src = photo.imageUrl; // local/legacy records: single image, unchanged behavior
+      }
       var fx = (photo.focalPointX != null ? photo.focalPointX : 0.5) * 100;
       var fy = (photo.focalPointY != null ? photo.focalPointY : 0.5) * 100;
       img.style.objectPosition = fx + '% ' + fy + '%';
@@ -282,10 +322,10 @@
       container.style.setProperty('--pg-rows', layout.rows);
 
       var seen = {};
-      layout.items.forEach(function (it) {
+      layout.items.forEach(function (it, index) {
         seen[it.id] = true;
         var el = state.cards[it.id];
-        if (!el) { el = buildCard(it.photo); state.cards[it.id] = el; container.appendChild(el); }
+        if (!el) { el = buildCard(it.photo, index === 0); state.cards[it.id] = el; container.appendChild(el); }
         el.style.gridColumn = (it.x + 1) + ' / span ' + it.w;
         el.style.gridRow = (it.y + 1) + ' / span ' + it.h;
         el.classList.toggle('pg-selected', state.selectedId === it.id);

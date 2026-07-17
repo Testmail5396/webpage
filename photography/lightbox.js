@@ -44,24 +44,42 @@
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + path + '"/></svg>';
     }
 
+    function fullscreenUrl(p) {
+      // Prefer a Cloudinary high-res transform for fullscreen viewing;
+      // fall back to the pre-existing fields for local/legacy photos.
+      return (p.cloudinaryPublicId && window.CloudinaryHelpers.getFullscreenUrl(p.cloudinaryPublicId)) ||
+        p.highResolutionUrl || p.imageUrl;
+    }
+
     function show(i) {
       if (!photos.length) return;
       index = (i + photos.length) % photos.length;
       var p = photos[index];
       root.classList.add('pg-lb-loading');
-      imgEl.src = p.highResolutionUrl || p.imageUrl;
+      imgEl.src = fullscreenUrl(p);
       imgEl.alt = p.altText || '';
       var meta = '';
       if (p.title) meta += '<span class="pg-lb-title">' + esc(p.title) + '</span>';
       if (p.caption) meta += '<span class="pg-lb-text">' + esc(p.caption) + '</span>';
       var sub = [];
       if (p.category) sub.push(p.category);
+      if (p.book) sub.push(p.book);
       if (sub.length) meta += '<span class="pg-lb-sub">' + esc(sub.join(' · ')) + '</span>';
       capEl.innerHTML = meta;
       capEl.style.display = meta ? '' : 'none';
       counterEl.textContent = (index + 1) + ' / ' + photos.length;
       var multi = photos.length > 1;
       prevBtn.style.display = nextBtn.style.display = multi ? '' : 'none';
+
+      // Prefetch only the immediate neighbors — never the whole gallery —
+      // so navigating feels instant without downloading every fullscreen
+      // image up front. Plain Image() objects, not inserted in the DOM.
+      if (multi) {
+        [1, -1].forEach(function (d) {
+          var neighbor = photos[(index + d + photos.length) % photos.length];
+          if (neighbor) { var pre = new Image(); pre.src = fullscreenUrl(neighbor); }
+        });
+      }
     }
     imgEl.addEventListener('load', function () { root.classList.remove('pg-lb-loading'); });
     imgEl.addEventListener('error', function () { root.classList.remove('pg-lb-loading'); });

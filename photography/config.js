@@ -7,12 +7,15 @@
    localStorage — no backend, no keys. Owner sign-in falls back
    to a local email unlock so the feature stays fully runnable.
 
-   PRODUCTION: set backend='supabase', add your Supabase values
+   PRODUCTION: set backend='cloudinary', add your Supabase values
    and a Google OAuth client id. Then sign-in uses real Google
-   Identity Services and the Netlify functions verify the Google
-   ID token server-side against the private ADMIN_EMAIL env var.
-   The service-role / client secret NEVER live here — only in the
-   server env (see README-photography.md + .env.example).
+   Identity Services and the Netlify functions verify the Google ID
+   token server-side against the private ADMIN_EMAIL env var. The
+   service-role key / Cloudinary API secret NEVER live here — only
+   in the server env (see README-photography.md + .env.example).
+   Supabase Postgres stores gallery METADATA only; Cloudinary stores
+   and delivers the image BINARIES (permanent storage, automatic
+   format/quality optimization, on-the-fly responsive transforms).
    ========================================================= */
 (function () {
   window.PhotographyConfig = {
@@ -34,7 +37,7 @@
     /* Public Google OAuth client id for Google Identity Services.
        Safe to expose. When empty, sign-in falls back to a local
        email+password unlock (dev). Set this to enable real Google Sign-In. */
-    googleClientId: '',
+    googleClientId: '49950313231-hoq958b9i5ciatekfqdh50unvfge1ndb.apps.googleusercontent.com',
 
     /* -------------------------------------------------------
        LOCAL-MODE PASSWORD GATE (fallback sign-in only)
@@ -50,12 +53,26 @@
        ------------------------------------------------------- */
     ownerPasswordHash: 'c22d38f53f4ad9435a64bb51b5093f48574b70cb2399d8ade9ed0f21c3fcff1a',
 
-    /* Data layer: 'local' | 'supabase'. */
-    backend: 'local',
+    /* Data layer: 'local' | 'cloudinary'.
+       'local'      → localStorage, demo/dev only, never production images.
+       'cloudinary' → Cloudinary for image storage/delivery (production —
+                      see README-photography.md → "Cloudinary setup"). */
+    backend: 'cloudinary',
 
-    /* Public Supabase values (safe to expose). Filled for prod. */
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    /* Public Supabase values (safe to expose). Not actually read by any
+       code today — the frontend only ever talks to Supabase through the
+       Netlify functions (which use the server-side SUPABASE_URL/
+       SUPABASE_ANON_KEY env vars) — kept here as documentation/for any
+       future direct-client use. supabaseUrl is derived from the anon
+       key's own `ref` claim (https://{ref}.supabase.co), NOT from a
+       value that merely happened to be labeled "supabaseUrl" — that
+       label was actually a Supabase publishable API key, not a URL. */
+    supabaseUrl: 'https://gzgqosjfedycnkmfswch.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6Z3Fvc2pmZWR5Y25rbWZzd2NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNTExNjEsImV4cCI6MjA5OTgyNzE2MX0.pHDqsZgKxq5G0yf9pqFHxnpSYSu7BvcNAXb4Ew9_eWs',
+
+    /* Public Cloudinary cloud name (safe to expose — it's part of every
+       delivery URL). Filled for prod; see README-photography.md. */
+    cloudinaryCloudName: 'nmffl8lr',
 
     /* Base path for the Netlify serverless functions (prod). */
     functionsBase: '/.netlify/functions',
