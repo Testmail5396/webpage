@@ -49,6 +49,7 @@
       rendered: false,    // becomes true after the first render (skip FLIP on initial mount)
       cellSize: 200,
       cols: opts.columns || 6,
+      isMobile: false,
       cards: {}   // id → element
     };
 
@@ -58,14 +59,40 @@
     container.style.setProperty('--pg-radius', state.radius + 'px');
 
     /* ---------- responsive column count ---------- */
+    // Four mobile tiers instead of one fixed count, so more photos are
+    // visible per screen on regular/wide phones instead of one giant
+    // full-width image — see config.js grid.columnsMobile* for the
+    // actual numbers (3 regular / 4 wide / 2 very small).
     function currentColumns() {
       var w = window.innerWidth;
-      if (w <= 640) return window.PhotographyConfig.grid.columnsMobile;
-      if (w <= 1024) return window.PhotographyConfig.grid.columnsTablet;
+      var g = window.PhotographyConfig.grid;
+      if (w <= 360) return g.columnsMobileSmall;
+      if (w <= 540) return g.columnsMobile;
+      if (w <= 768) return g.columnsMobileWide;
+      if (w <= 1024) return g.columnsTablet;
       return state.columns;
     }
 
     /* ---------- packing ---------- */
+    // Card sizePresets (config.js) are authored as fractions of the
+    // DESKTOP column count (e.g. Portrait's gridWidth:3 means "3 of 15
+    // columns" = 1/5 of a row). On mobile's much narrower column count,
+    // using that same raw number directly would clamp almost every card
+    // to the full row width (3 of 3, 4 of 4, ...) — which is exactly the
+    // "one image fills the screen" bug this fixes. So on mobile we
+    // rescale each card's span down to the SAME relative fraction of the
+    // mobile column count instead of reusing the desktop-relative number
+    // verbatim, deriving height from the original w:h ratio so the
+    // card's shape stays as faithful as small integer grid units allow.
+    function effectiveSpan(gridWidth, gridHeight, cols) {
+      var w = clamp(gridWidth || 1, 1, cols);
+      var h = clamp(gridHeight || 1, 1, 8);
+      if (!state.isMobile) return { w: w, h: h };
+      var refCols = window.PhotographyConfig.grid.columnsDesktop || 15;
+      w = clamp(Math.max(1, Math.round((gridWidth || 1) * cols / refCols)), 1, cols);
+      h = clamp(Math.max(1, Math.round(w * (gridHeight || 1) / (gridWidth || 1))), 1, 8);
+      return { w: w, h: h };
+    }
     function packedLayout() {
       var cols = state.cols;
       var items = state.photos.slice().sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
@@ -85,8 +112,8 @@
       }
       var maxRow = 0;
       var out = items.map(function (p) {
-        var w = clamp(p.gridWidth || 1, 1, cols);
-        var h = clamp(p.gridHeight || 1, 1, 8);
+        var span = effectiveSpan(p.gridWidth, p.gridHeight, cols);
+        var w = span.w, h = span.h;
         var placed = false, x = 0, y = 0;
         for (y = 0; y < 2000 && !placed; y++) {
           for (x = 0; x <= cols - w; x++) {
@@ -103,9 +130,11 @@
     /* ---------- sizing ---------- */
     function recalcCell() {
       state.cols = currentColumns();
+      // Covers all three mobile column tiers (2/3/4) — see currentColumns().
+      state.isMobile = window.innerWidth <= 768;
       // Tighter gap on mobile per the 8px system.
       var g = window.PhotographyConfig.grid;
-      state.gap = (window.innerWidth <= 640 && g.gapMobile != null) ? g.gapMobile : (opts.gap != null ? opts.gap : 16);
+      state.gap = (state.isMobile && g.gapMobile != null) ? g.gapMobile : (opts.gap != null ? opts.gap : 16);
       container.style.setProperty('--pg-gap', state.gap + 'px');
       var inner = container.clientWidth;
       var cw = (inner - state.gap * (state.cols - 1)) / state.cols;
@@ -493,7 +522,12 @@
         it.photo.gridX = it.x; it.photo.gridY = it.y;
         return {
           id: it.id, gridX: it.x, gridY: it.y,
-          gridWidth: it.w, gridHeight: it.h, sortOrder: it.photo.sortOrder
+          // Persist the photo's own CANONICAL size (desktop-relative),
+          // never it.w/it.h — on mobile those are rescaled just for
+          // rendering (see effectiveSpan) and would otherwise overwrite
+          // the real layout with squashed mobile-only dimensions.
+          gridWidth: it.photo.gridWidth || 1, gridHeight: it.photo.gridHeight || 1,
+          sortOrder: it.photo.sortOrder
         };
       });
       opts.onLayoutChange && opts.onLayoutChange(items);
@@ -517,7 +551,7 @@
     return {
       setPhotos: function (photos) { state.photos = (photos || []).slice(); state.cards = {}; container.innerHTML = ''; render(); },
       setMode: function (mode) { state.mode = mode; state.selectedId = null; state.cards = {}; container.innerHTML = ''; render(); },
-      getLayout: function () { return packedLayout().items.map(function (it) { return { id: it.id, gridX: it.x, gridY: it.y, gridWidth: it.w, gridHeight: it.h, sortOrder: it.photo.sortOrder }; }); },
+      getLayout: function () { return packedLayout().items.map(function (it) { return { id: it.id, gridX: it.x, gridY: it.y, gridWidth: it.photo.gridWidth || 1, gridHeight: it.photo.gridHeight || 1, sortOrder: it.photo.sortOrder }; }); },
       relayout: function () { recalcCell(); render(); },
       selectCard: function (id) { state.selectedId = id; render(); },
       getSelectedId: function () { return state.selectedId; },

@@ -83,17 +83,25 @@
     functionsBase: '/.netlify/functions',
 
     /* Bento grid — strict 8px system.
-       15 columns on desktop, 6 on tablet, 2 on mobile.
-       15 = 5 × 3: the default auto-sized Portrait/Square card (3 units
-       wide) now tiles exactly 5-per-row on desktop instead of 4 (was
-       12 = 4 × 3). Landscape (4) and Feature (6) don't divide evenly
-       into 15 — that's normal for a Bento grid; the collision-aware
-       packer fills the remainder with other cards each row, it never
-       overlaps or leaves the grid broken. */
+       15 columns on desktop, 6 on tablet, and THREE mobile tiers so more
+       photos are visible per screen instead of one giant full-width
+       image: 4 on wider phones (540–768px), 3 on regular phones
+       (360–540px), 2 on very small screens (≤360px) — see
+       bento-grid.js → currentColumns(). 15 = 5 × 3: the default
+       auto-sized Portrait/Square card (3 units wide) now tiles exactly
+       5-per-row on desktop instead of 4 (was 12 = 4 × 3). Landscape (4)
+       and Feature (6) don't divide evenly into 15 — that's normal for a
+       Bento grid; the collision-aware packer fills the remainder with
+       other cards each row, it never overlaps or leaves the grid
+       broken. On mobile, card spans are rescaled proportionally to the
+       much smaller column count instead of reusing these desktop-
+       relative numbers verbatim — see bento-grid.js → effectiveSpan(). */
     grid: {
       columnsDesktop: 15,
-      columnsTablet: 6,
-      columnsMobile: 2,
+      columnsTablet: 6,        // 768–1024px
+      columnsMobileWide: 4,    // 540–768px — wider phones/phablets
+      columnsMobile: 3,        // 360–540px — regular phones
+      columnsMobileSmall: 2,   // ≤360px — very small screens
       gap: 16,          // 8px unit × 2
       gapMobile: 8,
       borderRadius: 16, // --radius-lg
