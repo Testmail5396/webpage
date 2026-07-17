@@ -181,13 +181,17 @@ stores the **metadata** row for each photo — both are required for
    **API Key**, and **API Secret** directly.
 3. **Add them ONLY to Netlify environment variables** (step 4 below) —
    never to `photography/config.js`, any other file the browser loads, or
-   a commit. `CLOUDINARY_CLOUD_NAME` is the one exception: it's not secret
-   (it's part of every public delivery URL), so it's also set as
-   `photography/config.js` → `cloudinaryCloudName` for the frontend's URL
-   helpers to use.
-4. **Create a dedicated upload folder** — pick a root folder name for this
-   app's uploads, e.g. `vikash-gallery`, and set it as
-   `CLOUDINARY_UPLOAD_FOLDER`. Nothing needs to be pre-created in the
+   a commit — not even as a documentation example (Netlify's secret
+   scanner matches exact env var values anywhere in deployed files,
+   including comments and docs). `CLOUDINARY_CLOUD_NAME` is not secret
+   (it's part of every public delivery URL), so it reaches the frontend
+   too, but via the runtime `public-config` endpoint (see "Runtime
+   config"), never a literal value committed here.
+4. **Create a dedicated upload folder** — pick any root folder name for
+   this app's uploads and set it as `CLOUDINARY_UPLOAD_FOLDER` (don't
+   reuse a name you've seen as an example anywhere in this repo's
+   history — use something of your own choosing). Nothing needs to be
+   pre-created in the
    Cloudinary console — the folder is created automatically on first
    upload. All uploads land under `{folder}/uploads/{year}/{uuid}`
    (category/book aren't known yet at upload time in this app's flow —
