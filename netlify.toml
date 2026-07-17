@@ -28,6 +28,17 @@
   # old `sharp`-native-module reasoning this block used to exist for.
   NODE_VERSION = "22"
 
+[functions]
+  # Explicitly selecting esbuild is required for correct dependency
+  # bundling — without it, every function that requires ./_lib.js (which
+  # itself requires @supabase/supabase-js) failed in production with
+  # "Runtime.ImportModuleError: Cannot find module '@supabase/supabase-js'".
+  # This block was removed earlier as part of cleaning up R2/sharp-specific
+  # config, on the mistaken assumption it existed ONLY for sharp's native
+  # binary — it's actually required for correct bundling of ALL the
+  # functions' npm dependencies, pure-JS or not.
+  node_bundler = "esbuild"
+
 # [[redirects]] section defines URL redirect rules for your site.
 # This is crucial for Single Page Applications (SPAs) that use client-side routing.
 # It tells Netlify to serve 'index.html' for any path that doesn't directly
