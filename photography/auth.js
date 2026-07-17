@@ -1,10 +1,11 @@
 /* =========================================================
    Photography section — AUTH (Google Sign-In)
    ---------------------------------------------------------
-   Owner Edit Mode is granted ONLY after an explicit sign-in
-   whose verified email exactly equals PhotographyConfig.adminEmail
-   (vikashsri987@gmail.com). Being signed into Chrome is NOT
-   enough — the user must sign in to THIS site.
+   Owner Edit Mode is granted ONLY after an explicit sign-in whose
+   verified email exactly equals PhotographyConfig.adminEmail (the
+   real owner address — fetched at runtime, never hardcoded here, see
+   config.js). Being signed into Chrome is NOT enough — the user must
+   sign in to THIS site.
 
    PRODUCTION (googleClientId set):
      Uses Google Identity Services. Google returns a signed ID
@@ -32,8 +33,22 @@
 
   function emit() { listeners.forEach(function (cb) { try { cb(state); } catch (e) {} }); }
   function norm(e) { return String(e || '').trim().toLowerCase(); }
-  function isOwner(email) { return norm(email) && norm(email) === norm(CFG.adminEmail); }
-  var googleEnabled = !!(CFG.googleClientId && CFG.googleClientId.trim());
+  // Google mode and the dev-password fallback are mutually exclusive
+  // (decided by isGoogleEnabled()), so each checks against its OWN
+  // owner identity: the dev fallback never touches the real ADMIN_EMAIL
+  // (fetched at runtime, may not have arrived yet) — it checks a fixed,
+  // harmless placeholder that ships with zero setup, matching local
+  // mode's "no backend, no keys" promise. Google mode checks the real
+  // adminEmail, which IS populated by the time a human can complete an
+  // actual Google sign-in (see config.js's runtime-config fetch).
+  function isOwner(email) {
+    var expected = isGoogleEnabled() ? CFG.adminEmail : CFG.localDevOwnerEmail;
+    return norm(email) && norm(email) === norm(expected);
+  }
+  // A function, not a captured boolean — CFG.googleClientId starts empty
+  // and is filled in asynchronously (see config.js), so this must be
+  // re-evaluated each time rather than frozen at parse time.
+  function isGoogleEnabled() { return !!(CFG.googleClientId && CFG.googleClientId.trim()); }
 
   /* ---------- session persistence ---------- */
   function persist() {
@@ -138,7 +153,7 @@
     dialog.querySelector('.pg-login-msg').textContent = '';
     body.innerHTML = '';
 
-    if (googleEnabled) {
+    if (isGoogleEnabled()) {
       var target = document.createElement('div');
       target.className = 'pg-gbtn';
       body.appendChild(target);
@@ -152,11 +167,11 @@
       // ownerPasswordHash comment for exactly what this does and doesn't protect).
       body.innerHTML =
         '<label class="pg-field"><span>Owner email</span>' +
-        '<input type="email" class="pg-login-email" placeholder="you@example.com" autocomplete="email"></label>' +
+        '<input type="email" class="pg-login-email" placeholder="' + CFG.localDevOwnerEmail + '" autocomplete="email"></label>' +
         '<label class="pg-field"><span>Password</span>' +
         '<input type="password" class="pg-login-pw" placeholder="••••••••" autocomplete="current-password"></label>' +
         '<button class="pg-btn pg-btn-primary pg-login-go">Continue</button>' +
-        '<p class="pg-hint">Dev mode: Google Sign-In activates once a Google Client ID is set in config.js.</p>';
+        '<p class="pg-hint">Dev mode: enter ' + CFG.localDevOwnerEmail + ' (this mode never checks the real owner email). Google Sign-In activates once a Google Client ID is configured in production.</p>';
       var input = body.querySelector('.pg-login-email');
       var pwInput = body.querySelector('.pg-login-pw');
       var msgEl = dialog.querySelector('.pg-login-msg');
@@ -207,10 +222,10 @@
     name: function () { return state.name; },
     picture: function () { return state.picture; },
     token: function () { return state.token; },
-    googleEnabled: function () { return googleEnabled; },
+    googleEnabled: function () { return isGoogleEnabled(); },
     signIn: function () { showDialog(); },
     signOut: function () {
-      if (googleEnabled && window.google && window.google.accounts) {
+      if (isGoogleEnabled() && window.google && window.google.accounts) {
         try { window.google.accounts.id.disableAutoSelect(); } catch (e) {}
       }
       state.admin = false; state.email = null; state.name = null; state.picture = null; state.token = null;
@@ -219,6 +234,11 @@
     onChange: function (cb) { listeners.push(cb); return function () { listeners = listeners.filter(function (f) { return f !== cb; }); }; }
   };
 
-  restore();
+  // Deferred until the runtime config (real adminEmail/googleClientId)
+  // has arrived — restoring a persisted Google-mode session before then
+  // would wrongly compare against the not-yet-populated adminEmail (or
+  // the dev-mode placeholder) and drop a legitimate admin session on
+  // refresh. Resolves immediately in local mode (see config.js).
+  (CFG.ready || Promise.resolve()).then(function () { restore(); emit(); });
   window.PhotographyAuth = Auth;
 })();

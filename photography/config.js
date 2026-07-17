@@ -4,21 +4,27 @@
    Single place to configure the photography feature.
 
    LOCAL mode (default): everything runs in the browser with
-   localStorage — no backend, no keys. Owner sign-in falls back
-   to a local email unlock so the feature stays fully runnable.
+   localStorage — no backend, no keys, no network calls at all.
+   Owner sign-in falls back to a local email unlock (checked against
+   `localDevOwnerEmail` below, NOT the real production owner email)
+   so the feature stays fully runnable with zero setup.
 
-   PRODUCTION: set backend='cloudinary', add your Supabase values
-   and a Google OAuth client id. Then sign-in uses real Google
-   Identity Services and the Netlify functions verify the Google ID
-   token server-side against the private ADMIN_EMAIL env var. The
-   service-role key / Cloudinary API secret NEVER live here — only
-   in the server env (see README-photography.md + .env.example).
-   Supabase Postgres stores gallery METADATA only; Cloudinary stores
-   and delivers the image BINARIES (permanent storage, automatic
-   format/quality optimization, on-the-fly responsive transforms).
+   PRODUCTION: set backend='cloudinary'. Real values (owner email,
+   Google OAuth client id, Cloudinary cloud name) are NEVER hardcoded
+   here — Netlify's secret scanner fails the build if a configured
+   environment variable's value appears in any deployed file, even
+   values that are otherwise safe to expose to the browser. Instead
+   they're fetched at runtime from a public (unauthenticated, no
+   secrets) Netlify Function — see `loadRuntimeConfig()` below and
+   `netlify/functions/public-config.js`. The API secret / service-role
+   key NEVER leave the server at all, runtime-fetched or otherwise —
+   see README-photography.md + .env.example. Supabase Postgres stores
+   gallery METADATA only; Cloudinary stores and delivers the image
+   BINARIES (permanent storage, automatic format/quality optimization,
+   on-the-fly responsive transforms).
    ========================================================= */
 (function () {
-  window.PhotographyConfig = {
+  var CFG = window.PhotographyConfig = {
     /* Routes (match the site's /projects style). */
     route: '/photos',
     adminRoute: '/photos/admin',
@@ -26,18 +32,27 @@
 
     /* -------------------------------------------------------
        OWNER IDENTITY
-       The one authorized owner. Used client-side ONLY for
-       harmless UI decisions (showing the edit toolbar). Real
-       authorization is enforced server-side in the Netlify
-       function against the private ADMIN_EMAIL env var — never
-       trust this value for security.
+       `adminEmail` is used client-side ONLY for harmless UI
+       decisions (showing the edit toolbar). Real authorization is
+       enforced server-side in the Netlify functions against the
+       private ADMIN_EMAIL env var — never trust this value for
+       security. Starts empty; filled in at runtime for production
+       (see loadRuntimeConfig() below) — never committed as a literal
+       value, so Netlify's secret scanner has nothing to flag.
+
+       `localDevOwnerEmail` is a fixed, harmless placeholder used ONLY
+       by the local-mode dev password fallback below — intentionally
+       NOT the real owner email, and never fetched from anywhere, so
+       local mode keeps its "zero setup, no keys, no network calls"
+       promise even in production-configured deployments.
        ------------------------------------------------------- */
-    adminEmail: 'vikashsri987@gmail.com',
+    adminEmail: '',
+    localDevOwnerEmail: 'owner@localhost.test',
 
     /* Public Google OAuth client id for Google Identity Services.
-       Safe to expose. When empty, sign-in falls back to a local
-       email+password unlock (dev). Set this to enable real Google Sign-In. */
-    googleClientId: '49950313231-hoq958b9i5ciatekfqdh50unvfge1ndb.apps.googleusercontent.com',
+       Starts empty; filled in at runtime for production. When empty,
+       sign-in falls back to the local email+password unlock (dev). */
+    googleClientId: '',
 
     /* -------------------------------------------------------
        LOCAL-MODE PASSWORD GATE (fallback sign-in only)
@@ -59,20 +74,10 @@
                       see README-photography.md → "Cloudinary setup"). */
     backend: 'cloudinary',
 
-    /* Public Supabase values (safe to expose). Not actually read by any
-       code today — the frontend only ever talks to Supabase through the
-       Netlify functions (which use the server-side SUPABASE_URL/
-       SUPABASE_ANON_KEY env vars) — kept here as documentation/for any
-       future direct-client use. supabaseUrl is derived from the anon
-       key's own `ref` claim (https://{ref}.supabase.co), NOT from a
-       value that merely happened to be labeled "supabaseUrl" — that
-       label was actually a Supabase publishable API key, not a URL. */
-    supabaseUrl: 'https://gzgqosjfedycnkmfswch.supabase.co',
-    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6Z3Fvc2pmZWR5Y25rbWZzd2NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNTExNjEsImV4cCI6MjA5OTgyNzE2MX0.pHDqsZgKxq5G0yf9pqFHxnpSYSu7BvcNAXb4Ew9_eWs',
-
     /* Public Cloudinary cloud name (safe to expose — it's part of every
-       delivery URL). Filled for prod; see README-photography.md. */
-    cloudinaryCloudName: 'nmffl8lr',
+       delivery URL). Starts empty; filled in at runtime for production
+       (see loadRuntimeConfig() below). */
+    cloudinaryCloudName: '',
 
     /* Base path for the Netlify serverless functions (prod). */
     functionsBase: '/.netlify/functions',
@@ -116,4 +121,19 @@
       draft: 'vphoto:draft:v2'
     }
   };
+
+  /* Local mode needs zero setup and makes zero network calls, by
+     design — resolve immediately. Cloudinary mode fetches the public
+     (non-secret) runtime values that Google Sign-In and Cloudinary URL
+     building depend on; auth.js/photography.js await this before doing
+     anything that needs them (see their own comments). A failure here
+     is logged, not thrown — the public gallery itself doesn't need
+     these values, only owner sign-in and admin uploads do. */
+  CFG.ready = CFG.backend !== 'cloudinary' ? Promise.resolve() :
+    fetch(CFG.functionsBase + '/public-config')
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (pub) { Object.assign(CFG, pub); })
+      .catch(function (e) {
+        console.error('[photography] could not load runtime config — owner sign-in will not work until this succeeds.', e);
+      });
 })();

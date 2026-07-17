@@ -21,8 +21,11 @@ The whole feature talks to one swappable data adapter, selected in
 | **Local** (default) | `'local'` | Browser `localStorage` (base64) | `localStorage` | Local email unlock (dev) | **None** — works immediately |
 | **Cloud (production)** | `'cloudinary'` | **Cloudinary** (CDN, automatic format/quality, on-the-fly responsive transforms) | Supabase Postgres | **Google Sign-In** + server-side `ADMIN_EMAIL` | See below |
 
-Owner email: **vikashsri987@gmail.com** (`ADMIN_EMAIL` on the server;
-`adminEmail` in `photography/config.js` for UI gating).
+Owner email: set via the `ADMIN_EMAIL` env var (server-side source of
+truth) — never hardcoded in the repo. The frontend fetches it at
+runtime from `netlify/functions/public-config.js` for UI gating only
+(see "Runtime config" below); the real authorization check always
+happens server-side.
 
 Local mode is fully functional and is what ships working out of the box —
 great for building/arranging the gallery. Switch to `'cloudinary'` when you
@@ -40,7 +43,7 @@ Supabase Postgres is the metadata store either way — only the image
 index.html                       ← 4th nav icon + #photos-content + script tags (only additions)
 script.js                        ← /photos routing added (existing routes untouched)
 photography/
-  config.js                      ← route, admin email, backend switch, grid defaults, cloudinaryCloudName
+  config.js                      ← route, backend switch, grid defaults, runtime-config fetch (see "Runtime config")
   cloudinary-helpers.js           ← getCloudinaryUrl/getResponsiveSrcSet/getPlaceholderUrl/getFullscreenUrl
   seed-data.js                   ← 14 placeholder photos (DEMO only, clearly separated)
   data-adapter.js                ← LocalAdapter (default) + CloudinaryAdapter
@@ -56,6 +59,7 @@ netlify/functions/               ← production serverless API (admin-authorized
   photos-settings.js, photos-write.js
   cloudinary-signature.js        ← mints signed direct-upload params (phase 1 of upload)
   cloudinary-delete.js           ← deletes a single Cloudinary asset by public_id
+  public-config.js               ← PUBLIC, no auth — serves adminEmail/googleClientId/cloudinaryCloudName at runtime (see "Runtime config")
   package.json                   ← @supabase/supabase-js, google-auth-library, cloudinary
 supabase/
   schema.sql                     ← tables (+ Cloudinary columns: cloudinary_public_id, secure_url, format, bytes, dominant_color, aspect_ratio, book, featured)
@@ -83,8 +87,8 @@ state, matching the existing three icons exactly.
 
 ## Owner access
 
-There are exactly two modes: **Owner Edit** (only `vikashsri987@gmail.com`)
-and **Public Read-Only** (everyone else).
+There are exactly two modes: **Owner Edit** (only the email set in the
+`ADMIN_EMAIL` env var) and **Public Read-Only** (everyone else).
 
 Entry points (subtle, non-disruptive to the public design):
 - The **profile icon at the bottom of the left sidebar** → **double-click**
@@ -215,20 +219,45 @@ stores the **metadata** row for each photo — both are required for
 ### 4. Environment variables
 Copy [`.env.example`](.env.example) and set the values in
 **Netlify → Site settings → Environment variables**:
-`ADMIN_EMAIL` (= `vikashsri987@gmail.com`), `GOOGLE_CLIENT_ID`, `SUPABASE_URL`,
+`ADMIN_EMAIL` (your real owner email), `GOOGLE_CLIENT_ID`, `SUPABASE_URL`,
 `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (metadata always lives in
 Supabase), and for Cloudinary: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
 `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_FOLDER`.
 
 ### 5. Flip the switch
-In `photography/config.js`:
-```js
-backend: 'cloudinary',
-googleClientId: 'your-client-id.apps.googleusercontent.com',
-supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
-supabaseAnonKey: 'your-anon-key',
-cloudinaryCloudName: 'your-cloud-name',   // same value as CLOUDINARY_CLOUD_NAME — not secret
-```
+In `photography/config.js`, set `backend: 'cloudinary'`. **Do not** put
+`googleClientId`, `cloudinaryCloudName`, or any real `adminEmail` value
+directly in this file — see "Runtime config" below for why, and how
+they actually reach the frontend.
+
+### Runtime config — why nothing real is ever committed
+
+Netlify's built-in secret scanner fails a deploy if a configured
+environment variable's **value** appears anywhere in the deployed
+files — including comments, README text, and `.env.example`'s own
+placeholder lines if they ever happen to literally match a real value
+you configured. This applies even to values that are otherwise totally
+fine to expose to every visitor (a Google OAuth client id, a Cloudinary
+cloud name, the owner's email) — the scanner just does exact-string
+matching against your Netlify env vars, with no concept of "this one's
+meant to be public."
+
+So `photography/config.js` never hardcodes `adminEmail`, `googleClientId`,
+or `cloudinaryCloudName` — it starts them empty and fetches them once at
+page load from `GET /.netlify/functions/public-config` (no auth required
+— these three values are the only ones it returns, and none of them are
+actually sensitive; the real security boundary is still `requireAdmin()`
+verifying the Google ID token server-side on every write). `config.js`
+exposes this as `PhotographyConfig.ready`, a Promise that `auth.js` and
+`photography.js` await before doing anything that needs these values —
+local mode never makes this call at all and resolves `ready` immediately,
+keeping its "zero setup, no keys, no network calls" promise intact.
+
+One consequence: the local-mode dev password fallback no longer checks
+your real owner email (that value isn't available client-side at all
+now) — it checks a fixed placeholder, `localDevOwnerEmail` in
+`config.js` (default `owner@localhost.test`), decoupled entirely from
+any real credential.
 
 ### 6. Local dev
 `netlify dev` runs the functions locally against your real Supabase +

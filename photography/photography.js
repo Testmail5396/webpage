@@ -87,7 +87,12 @@
     AUTH.onChange(function () { refreshMode(); });
     wireLoadMoreObserver();
 
-    load();
+    // Deferred until the runtime config (Cloudinary cloud name, real
+    // adminEmail) has arrived — in local mode CFG.ready resolves
+    // immediately (no observable delay); in cloudinary mode this is
+    // the tiny public-config fetch, strictly faster than the photo
+    // list fetch that follows it.
+    (CFG.ready || Promise.resolve()).then(load);
   };
 
   /* ---------------- progressive loading: "load more" on scroll ----------------
